@@ -3,11 +3,10 @@ import localFont from 'next/font/local';
 import { notFound } from 'next/navigation';
 import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
-import { AppShell } from '@/components/app-shell';
-import { DemoProvider } from '@/features/demo-provider';
 import { isLocale, locales } from '@/i18n/config';
 import { getMessages } from '@/i18n/messages';
 import { palette } from '@/lib/palette';
+import { brandIcons } from '@/lib/brand';
 import '../globals.css';
 
 const manrope = localFont({
@@ -36,7 +35,10 @@ export async function generateMetadata({ params }: LocaleParams): Promise<Metada
     description: messages.meta.description,
     appleWebApp: { capable: true, title: 'masomeno.' },
     manifest: '/manifest.webmanifest',
-    icons: { icon: '/brand.svg', apple: '/apple-touch-icon.png' },
+    icons: {
+      icon: { url: brandIcons.favicon.src, sizes: brandIcons.favicon.sizes, type: 'image/png' },
+      apple: { url: brandIcons.apple.src, sizes: brandIcons.apple.sizes, type: 'image/png' },
+    },
   };
 }
 
@@ -51,11 +53,7 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} className={manrope.variable}>
       <body>
-        <NextIntlClientProvider>
-          <DemoProvider key={locale}>
-            <AppShell>{children}</AppShell>
-          </DemoProvider>
-        </NextIntlClientProvider>
+        <NextIntlClientProvider>{children}</NextIntlClientProvider>
       </body>
     </html>
   );

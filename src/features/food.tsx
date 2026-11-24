@@ -17,6 +17,21 @@ const sections = [
   { id: 'plan', path: '/comidas/plan', icon: CalendarDays },
 ] as const;
 
+export function FoodNavigation({ section, demo }: { section: (typeof sections)[number]['id']; demo: boolean }) {
+  const t = useTranslations('meals');
+  const locale = useLocale();
+  return (
+    <nav className="section-nav" aria-label={t('sections')}>
+      {sections.map(({ id, path, icon: Icon }) => (
+        <Link href={localePath(locale, path)} key={id} prefetch={demo ? undefined : false}
+          aria-current={id === section ? 'page' : undefined}>
+          <Icon size={18} strokeWidth={1.8} aria-hidden />{t(id)}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
 function RecipeExamples() {
   const t = useTranslations('meals');
   const locale = useLocale();
@@ -54,20 +69,13 @@ export function Food({ section }: { section: (typeof sections)[number]['id'] }) 
   const t = useTranslations('meals');
   const nav = useTranslations('nav');
   const home = useTranslations('home');
-  const locale = useLocale();
   const { meals } = useDemo();
   const [open, setOpen] = useState<Meal | 'new' | null>(null);
 
   return (
     <>
       <PageHeading title={nav('meals')} description={t('intro')} />
-      <nav className="section-nav" aria-label={t('sections')}>
-        {sections.map(({ id, path, icon: Icon }) => (
-          <Link href={localePath(locale, path)} key={id} aria-current={id === section ? 'page' : undefined}>
-            <Icon size={18} strokeWidth={1.8} aria-hidden />{t(id)}
-          </Link>
-        ))}
-      </nav>
+      <FoodNavigation section={section} demo />
       {section === 'diary' && (
         <section className="panel section-panel">
           <div className="panel-heading">

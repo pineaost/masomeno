@@ -3,8 +3,8 @@
 | Etapa | Alcance | Verificación |
 | --- | --- | --- |
 | 1. Fundación | App local, identidad, navegación adaptable, configuración, i18n, base instalable y datos de ejemplo | TypeScript, lint, build y recorrido en pantallas pequeñas y de escritorio |
-| 2. Autenticación y persistencia | Supabase, sesión Google con PKCE, lista de usuarios autorizados, perfil, preferencias y RLS | Usuario invitado inicia sesión, cuenta ajena rechazada y pruebas con dos usuarios. Despliegue de prueba con autorización |
-| 3. Peso y entrenamiento | CRUD de peso, historial, gráfico y tendencia. Cuatro ejercicios destacados, cargas y cinta con velocidad, ritmo y comparaciones comparables | Conversiones, fechas, promedios de cinta y aislamiento |
+| 2. Autenticación y persistencia | Registro abierto con Google PKCE o correo y contraseña. Confirmación, recuperación, perfil, preferencias y RLS por propietario | El esquema inicial está aplicado. Pendientes el cambio de acceso, la configuración de proveedores y las pruebas con cuentas reales |
+| 3. Peso y entrenamiento | Pesajes y objetivo, historial y tendencia. Ejercicios y marcas, cuatro destacados y cinta con velocidad y ritmo. Logo provisional incorporado | El esquema está aplicado. Conversión de unidades, fechas, tendencias y RLS verificados en local |
 | 4. Alimentación | Objetivo calórico versionado, carga libre, repetición, alimentos y porciones declaradas, edición y eliminación | Totales por día local, excedentes y cambios de objetivo sin alterar días anteriores |
 | 5. Biblioteca | Ingredientes con sinónimos, estado crudo o cocido y fuentes verificables. Recetas, favoritos y búsqueda. Esquema JSON, ejemplo, validación e importación | Importación repetible, datos incompletos o duplicados rechazados con mensajes por entrada y cálculo por porción |
 | 6. Recomendaciones | Heladera sin cantidades, ingredientes privados vinculables al catálogo, filtros y Sorprendeme | Orden por ingredientes faltantes, exclusiones estrictas y variedad entre tandas |

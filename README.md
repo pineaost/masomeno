@@ -4,9 +4,9 @@
 
 ## Estado
 
-Etapa 1, fundación. Incluye Inicio, Comidas, Evolución, Gym y Configuración con datos ficticios. Podés probar el registro y la corrección de comidas, agregar un pesaje y cambiar el idioma o las unidades. Los registros de ejemplo se mantienen durante la navegación y se reinician al recargar o cambiar de idioma. Las preferencias se guardan en cookies del navegador.
+MASOMENO usa un registro abierto con Google o correo y contraseña. Cada cuenta conserva en privado su perfil, preferencias, pesajes, ejercicios, cargas y sesiones de cinta. Las tres migraciones están aplicadas en Supabase. El acceso con Google ya se probó en localhost con dos cuentas distintas. Está pendiente el primer despliegue.
 
-La fecha de ejemplo es el 24 de noviembre de 2026. Las cargas y sesiones de cinta ilustran cómo se verá el historial. El recetario contiene tres ejemplos que se pueden buscar.
+La demo de la Etapa 1 sigue disponible durante el desarrollo. Para usarla, agregá `MASOMENO_DEMO_MODE=true` a `.env.local` y reiniciá `npm run dev`. Los registros ficticios se reinician al recargar o cambiar de idioma. Quitá esa opción para probar el flujo de autenticación.
 
 ## Desarrollo local
 
@@ -27,42 +27,48 @@ Para probar el modo independiente, usá la opción de instalar del navegador en 
 | `npm run dev` | Ejecuta el servidor de desarrollo |
 | `npm run typecheck` | Genera los tipos de rutas y verifica TypeScript |
 | `npm run lint` | Ejecuta ESLint |
-| `npm test` | Prueba cálculos de calorías, unidades y fechas |
+| `npm test` | Prueba dominio, validaciones de cuenta, decisiones de acceso y RLS en PostgreSQL en memoria |
 | `npm run build` | Compila la versión de producción |
 | `npm run start` | Sirve la compilación de producción |
 
 ## Tecnologías y carpetas
 
-Next.js 16 con App Router, React 19, TypeScript, Tailwind CSS 4, next-intl y Lucide. Manrope se sirve desde la aplicación con `next/font/local` y su licencia está en `src/assets`. Los gráficos de demo son SVG y el manifiesto de instalación usa el isotipo de la marca.
+Next.js 16 con App Router, React 19, TypeScript, Tailwind CSS 4, next-intl, Lucide y Supabase SSR. Manrope se sirve desde la aplicación con `next/font/local` y su licencia está en `src/assets`. Los gráficos son SVG. La ilustración original `logo1.jpg` se conserva en la raíz, y el favicon y los iconos de instalación reproducen su dibujo.
 
 | Ruta | Contenido |
 | --- | --- |
-| `src/app` | Rutas, layouts, metadatos, manifiesto y tokens CSS |
+| `src/app` | Rutas, callback de OAuth, acciones de cuenta, metadatos y estilos |
 | `src/components` | Navegación, encabezados, diálogos y gráfico |
-| `src/features` | Pantallas, datos y estado de demostración |
+| `src/features` | Pantallas privadas, login, configuración y demostración |
 | `src/i18n` | Catálogos de español, inglés e italiano y configuración regional |
-| `src/lib` | Fechas, unidades y preferencias del navegador |
-| `public` | Isotipo SVG e iconos de instalación |
+| `src/lib` | Conexión con Supabase, autorización, validación, fechas y unidades |
+| `public` | Favicon, iconos de instalación y primer isotipo |
+| `supabase` | Configuración del CLI y migraciones de cuenta y entrenamiento con RLS |
+| `tests` | Pruebas de dominio, cuenta y políticas SQL |
 | `docs` | Estado, etapas y guías de configuración |
 
 ## Variables de entorno
 
-La Etapa 1 funciona sin variables. A partir de la Etapa 2, copiá `.env.example` a `.env.local` y completá:
+En una copia nueva, creá `.env.local` a partir de [.env.example](.env.example).
 
 | Variable | Origen |
 | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL del proyecto Supabase |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Clave publicable del proyecto Supabase |
+| `MASOMENO_SITE_URL` | Origen para los correos. En Vercel usá el dominio HTTPS canónico. La app puede usar el dominio automático de Vercel si están expuestas las variables de sistema. En `npm run dev` el valor por defecto es `http://localhost:3000` |
+| `MASOMENO_DEMO_MODE` | Opcional, activa la demo exclusivamente con `npm run dev` |
 
 El secreto de OAuth se configura en Supabase. Conservá `.env.local` fuera de Git.
 
 ## Supabase, Google OAuth y migraciones
 
-La [guía de la Etapa 2](docs/SETUP_SUPABASE.md) explica cómo preparar un proyecto Supabase, dar acceso a las cuentas invitadas, configurar Google OAuth y verificar las migraciones y el aislamiento de datos. El código de autenticación y la primera migración se incorporarán durante esa etapa.
+La [guía de Supabase](docs/SETUP_SUPABASE.md) describe el cambio de acceso y la configuración de confirmación, recuperación y SMTP. La [guía de Google](docs/SETUP_GOOGLE_AUTH.md) detalla las URLs del callback. La [prueba de aceptación](docs/TEST_AUTH.md) cubre el primer registro y el aislamiento.
 
 ## Vercel
 
-Cuando se autorice un primer despliegue, importá el repositorio de GitHub en Vercel con el preset Next.js, raíz del proyecto `.`, Node.js 24.x y los comandos predeterminados. Agregá las dos variables de Supabase al entorno que corresponda y registrá la URL final del callback en Supabase antes de probar Google. Usá un proyecto Supabase de prueba para las vistas previas. [Configuración de builds en Vercel](https://vercel.com/docs/builds/configure-a-build)
+Cuando se autorice publicar, importá `pineaost/masomeno` desde GitHub con la rama de producción `main`, preset Next.js, raíz `.` y Node.js 24.x. El despliegue por Git usa los valores predeterminados de Vercel. [Git y Vercel](https://vercel.com/docs/git)
+
+En el entorno **Production**, configurá las dos variables `NEXT_PUBLIC_SUPABASE_*` antes del build y `MASOMENO_SITE_URL` con el origen HTTPS definitivo. Dejá `MASOMENO_DEMO_MODE` sin definir. Los secretos de Google OAuth y SMTP se configuran en Supabase. Una vez confirmado el dominio, completá las [URLs públicas en Supabase](docs/SETUP_SUPABASE.md#urls-para-vercel).
 
 ## Continuidad
 

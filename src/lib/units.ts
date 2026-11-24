@@ -18,6 +18,10 @@ export function displayDistance(km: number, unit: DistanceUnit) {
   return unit === 'mi' ? km / kmPerMile : km;
 }
 
+export function distanceInKm(value: number, unit: DistanceUnit) {
+  return unit === 'mi' ? value * kmPerMile : value;
+}
+
 export function heightInFeetAndInches(cm: number) {
   const inches = Math.round(cm / cmPerInch);
   return { feet: Math.floor(inches / 12), inches: inches % 12 };

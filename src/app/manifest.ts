@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { brandIcons } from '@/lib/brand';
 import { palette } from '@/lib/palette';
 
 export default function manifest(): MetadataRoute.Manifest {
@@ -13,9 +14,9 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: palette.bone,
     theme_color: palette.petrol,
     icons: [
-      { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-      { src: '/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+      { ...brandIcons.small, type: 'image/png' },
+      { ...brandIcons.large, type: 'image/png', purpose: 'any' },
+      { ...brandIcons.maskable, type: 'image/png', purpose: 'maskable' },
     ],
   };
 }
