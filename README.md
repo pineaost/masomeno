@@ -4,7 +4,7 @@
 
 ## Estado
 
-MASOMENO usa un registro abierto con Google o correo y contraseña. Cada cuenta conserva en privado su perfil, preferencias, pesajes, ejercicios, cargas y sesiones de cinta. Las tres migraciones están aplicadas en Supabase. El acceso con Google ya se probó en localhost con dos cuentas distintas. Está pendiente el primer despliegue.
+MASOMENO está publicada en Vercel con acceso por Google. Cada cuenta conserva en privado su perfil, preferencias, pesajes, ejercicios, cargas y sesiones de cinta. El esquema de alimentación y Mi heladera ya está aplicado en Supabase. La versión local incorpora esos módulos y la limpieza visual.
 
 La demo de la Etapa 1 sigue disponible durante el desarrollo. Para usarla, agregá `MASOMENO_DEMO_MODE=true` a `.env.local` y reiniciá `npm run dev`. Los registros ficticios se reinician al recargar o cambiar de idioma. Quitá esa opción para probar el flujo de autenticación.
 
@@ -43,7 +43,7 @@ Next.js 16 con App Router, React 19, TypeScript, Tailwind CSS 4, next-intl, Luci
 | `src/i18n` | Catálogos de español, inglés e italiano y configuración regional |
 | `src/lib` | Conexión con Supabase, autorización, validación, fechas y unidades |
 | `public` | Favicon, iconos de instalación y primer isotipo |
-| `supabase` | Configuración del CLI y migraciones de cuenta y entrenamiento con RLS |
+| `supabase` | Configuración del CLI, migraciones con RLS y semilla del catálogo de alimentos |
 | `tests` | Pruebas de dominio, cuenta y políticas SQL |
 | `docs` | Estado, etapas y guías de configuración |
 

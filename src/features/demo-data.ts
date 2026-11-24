@@ -32,12 +32,6 @@ export const sampleWeights: WeighIn[] = [
   { id: 'w9', day: demoDay, kg: 78.4 },
 ];
 
-export const sampleRecipes = [
-  { name: 'recipeA', hint: 'recipeAHint', minutes: 20 },
-  { name: 'recipeB', hint: 'recipeBHint', minutes: 35 },
-  { name: 'recipeC', hint: 'recipeCHint', minutes: 25 },
-] as const;
-
 export const sampleLifts = [
   { name: 'leg', loads: [60, 65, 70] },
   { name: 'chest', loads: [30, 35, 35] },

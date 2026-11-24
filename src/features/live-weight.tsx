@@ -58,9 +58,9 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now, compact
 
   return (
     <>
-      <PageHeading title={compact ? home('title') : nav('progress')} description={compact ? home('intro') : t('intro')}>
-        {!compact && <AddRecordButton onClick={() => setModal('new')}>{home('logWeight')}</AddRecordButton>}
-      </PageHeading>
+      {!compact && <PageHeading title={nav('progress')} visuallyHidden>
+        <AddRecordButton onClick={() => setModal('new')}>{home('logWeight')}</AddRecordButton>
+      </PageHeading>}
       {compact ? (
         <section className="panel weight-panel tracking-snapshot">
           <div className="panel-heading">

@@ -15,17 +15,12 @@
     "removeConfirm": "¿Eliminar este registro de ejemplo?",
     "invalid": "Revisá los datos ingresados."
   },
-  "nav": { "home": "Inicio", "meals": "Comidas", "progress": "Evolución", "gym": "Gym", "settings": "Configuración" },
+  "nav": { "home": "Hoy", "meals": "Comidas", "progress": "Evolución", "gym": "Gym", "settings": "Configuración", "options": "Opciones de cuenta", "back": "Volver" },
   "home": {
-    "title": "Tu día, más o menos.",
-    "intro": "Un vistazo rápido a cómo viene el día.",
     "actions": "Acciones rápidas",
     "logMeal": "Registrar comida",
-    "logMealHint": "Sumá algo que comiste",
     "chooseMeal": "¿Qué como hoy?",
-    "chooseMealHint": "Explorá el recetario",
     "logWeight": "Registrar peso",
-    "logWeightHint": "Agregá una medición",
     "dailyMeals": "Comidas de hoy",
     "seeMeals": "Ver registro",
     "seeProgress": "Ver evolución",
@@ -37,11 +32,10 @@
     "over": "Por encima del objetivo",
     "reached": "Objetivo alcanzado",
     "estimate": "Valores aproximados",
-    "summary": "{consumed} de {goal} kcal. {percentage}% del objetivo.",
-    "overMessage": "Hoy ganó la gastronomía."
+    "summary": "{consumed} de {goal} kcal. {percentage}% del objetivo."
   },
   "meals": {
-    "intro": "Lo que comiste, lo que podés cocinar y lo que vas a preparar.",
+    "fridge": "Mi heladera",
     "sections": "Secciones de Comidas",
     "diary": "Registro",
     "recipes": "Recetario",
@@ -59,20 +53,10 @@
     "kcal": "Calorías aproximadas (kcal)",
     "exampleName": "Ej. Ensalada con pollo",
     "editMeal": "Editar comida",
-    "search": "Buscar recetas de ejemplo",
-    "noneFound": "No encontramos recetas con esa búsqueda.",
-    "minutes": "{count} min",
-    "recipeA": "Ensalada tibia de garbanzos",
-    "recipeAHint": "Garbanzos, limón y verduras de estación.",
-    "recipeB": "Tortilla de papa y cebolla",
-    "recipeBHint": "Papa, huevo y cebolla. Un clásico.",
-    "recipeC": "Pasta con tomate y albahaca",
-    "recipeCHint": "Tomate, ajo y albahaca fresca.",
     "planTitle": "Tu semana en la mesa",
     "planEmpty": "La planificación de almuerzos y cenas se habilitará en una próxima etapa."
   },
   "weight": {
-    "intro": "Tu historial de pesajes y la tendencia a lo largo del tiempo.",
     "current": "Peso actual",
     "initial": "Peso inicial",
     "target": "Peso objetivo",
@@ -93,7 +77,6 @@
     "emptyHistory": "Todavía no hay mediciones para este período."
   },
   "gym": {
-    "intro": "Un resumen de tus ejercicios principales y sesiones de cinta.",
     "favorites": "Ejercicios principales",
     "last": "Última carga",
     "best": "Mejor carga",
@@ -153,20 +136,92 @@
   },
   "empty": {
     "diary": {
-      "intro": "Tu registro de comidas.",
       "title": "Todavía no hay comidas",
       "hint": "El registro de comidas se habilitará en una próxima etapa."
     },
     "recipes": {
-      "intro": "Tu recetario personal.",
       "title": "Todavía no hay recetas",
       "hint": "El catálogo se incorporará en una próxima etapa."
     },
     "plan": {
-      "intro": "Tu planificación de comidas.",
       "title": "Todavía no hay un plan",
       "hint": "La planificación semanal se habilitará en una próxima etapa."
     }
+  },
+  "nutrition": {
+    "repeatRecent": "Repetir una comida reciente",
+    "repeatTitle": "Repetir comida",
+    "repeatEstimate": "Algún alimento cambió en la biblioteca. Podés repetir esta comida con la estimación anterior.",
+    "roughAmount": "Usá una cantidad aproximada o una medida disponible.",
+    "loading": "Cargando las comidas de hoy…",
+    "pending": "El registro de comidas se habilitará cuando se apliquen las migraciones de alimentación.",
+    "unavailable": "No pudimos cargar la información de alimentación. Volvé a intentarlo.",
+    "goal": "Objetivo calórico diario",
+    "noGoal": "Todavía no definiste un objetivo calórico.",
+    "setGoal": "Establecer objetivo",
+    "editGoal": "Editar objetivo",
+    "goalValue": "{kcal} kcal por día",
+    "goalInput": "Objetivo diario (kcal)",
+    "goalHint": "El cambio se aplica desde hoy. Dejá el campo vacío para quitar el objetivo.",
+    "entryType": "Modo de registro",
+    "catalog": "Biblioteca",
+    "manual": "Carga libre",
+    "optionalName": "Nombre de la comida (opcional)",
+    "search": "Buscar alimentos",
+    "noResults": "No encontramos alimentos con esa búsqueda.",
+    "emptyCatalog": "La biblioteca todavía no tiene alimentos. Podés usar la carga libre.",
+    "unverified": "Referencia pendiente de validación",
+    "raw": "Crudo",
+    "cooked": "Cocido",
+    "prepared": "Preparado",
+    "per100": "{kcal} kcal / 100 g",
+    "addFood": "Agregar alimento",
+    "removeFood": "Quitar {food}",
+    "removeMeal": "Eliminar {meal}",
+    "removeConfirm": "¿Eliminar esta comida del registro?",
+    "amount": "Cantidad",
+    "unit": "Unidad",
+    "grams": "Gramos",
+    "egg": "Huevo grande",
+    "banana": "Banana mediana",
+    "tablespoon": "Cucharada",
+    "lineEstimate": "{grams} g · {kcal} kcal",
+    "mealTotal": "Total estimado: {kcal} kcal",
+    "source": "Fuente"
+  },
+  "recipes": {
+    "filters": "Intensidad de las recetas",
+    "all": "Todas",
+    "light": "Liviana",
+    "medium": "Media",
+    "hearty": "Fuerte",
+    "extraHearty": "En la pera",
+    "perServing": "{kcal} kcal por porción",
+    "minutes": "{count} min",
+    "marked": "{available}/{total} ingredientes disponibles",
+    "missing": "{unavailable, plural, one {# no disponible} other {# no disponibles}}",
+    "emptyFilter": "Todavía no hay recetas de esta intensidad.",
+    "ingredients": "Ingredientes",
+    "servings": "{count, plural, one {# porción} other {# porciones}}",
+    "preparation": "Preparación"
+  },
+  "recipeState": {
+    "pending": "El recetario estará disponible al aplicar la migración.",
+    "unavailable": "No pudimos cargar el recetario. Volvé a intentarlo."
+  },
+  "fridge": {
+    "hint": "Tocá de nuevo una opción para dejarla sin marcar.",
+    "search": "Buscar ingredientes",
+    "available": "Tengo",
+    "unavailable": "No tengo",
+    "availableFood": "Tengo {food}",
+    "unavailableFood": "No tengo {food}",
+    "noResults": "No encontramos ingredientes con esa búsqueda.",
+    "empty": "Todavía no hay ingredientes en la biblioteca.",
+    "pending": "Mi heladera estará disponible al aplicar la migración.",
+    "demo": "Mi heladera guarda la selección cuando entrás con tu cuenta.",
+    "saveError": "No se guardó.",
+    "loadError": "No pudimos cargar tu heladera. Volvé a intentarlo."
   },
   "tracking": {
     "loading": "Cargando registros…",
@@ -202,7 +257,6 @@
     "load": "Carga ({unit})",
     "noLoads": "Todavía no hay cargas registradas.",
     "loadChange": "Desde la marca anterior",
-    "strengthIntro": "Cargas e historial de rendimiento.",
     "strengthSummary": "Resumen de cargas",
     "strengthChart": "Evolución de la carga",
     "liftHistory": "Historial de cargas",
@@ -216,7 +270,6 @@
     "recentSpeed": "Velocidad media ({count, plural, one {# sesión} other {# sesiones}})",
     "runChange": "Frente a las 5 anteriores",
     "noRuns": "Todavía no hay sesiones de cinta.",
-    "runIntro": "Distancia, duración, velocidad y ritmo de cada sesión.",
     "runChart": "Evolución de la velocidad",
     "runHistory": "Historial de cinta",
     "newRun": "Registrar sesión",
@@ -228,7 +281,6 @@
     "shortChart": "El gráfico aparece con dos o más registros."
   },
   "settings": {
-    "intro": "Elegí cómo ver la aplicación.",
     "preferences": "Preferencias",
     "language": "Idioma",
     "weight": "Peso y cargas",

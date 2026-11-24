@@ -10,31 +10,8 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # Reglas permanentes de MASOMENO
 
-## Desarrollo local
-
-- Realizá todo el desarrollo exclusivamente en `C:\Users\yvozzi\Downloads\MASOMENO`.
-- Podés inspeccionar, crear, editar y eliminar archivos del proyecto, instalar dependencias y ejecutar las pruebas necesarias. Las modificaciones locales habituales están autorizadas.
-- Usá localhost para comprobar las pantallas, la autenticación y los módulos.
-
-## Git y GitHub
-
-- El repositorio remoto es [pineaost/masomeno](https://github.com/pineaost/masomeno).
-- Podés usar comandos Git de consulta, como `git status` y `git diff`.
-- Requerí autorización expresa antes de ejecutar `git push`, `git pull`, `git merge`, `git reset` o cualquier otra operación que modifique el repositorio remoto o pueda sobrescribir trabajo.
-- Creá commits únicamente si el usuario lo solicita expresamente. Esta regla también se aplica a los archivos generados por Next.js.
-- El usuario decide cuándo se termina una etapa y cuándo se suben los cambios a GitHub.
-
-## Vercel y Supabase
-
-- Ejecutá deploys en Vercel, publicá cambios o aplicá migraciones en Supabase remoto únicamente con autorización expresa del usuario.
-- Podés preparar cambios, desarrollar migraciones SQL y ejecutar pruebas locales.
-- La aplicación local puede usar la conexión Supabase existente para las pruebas funcionales autorizadas. Evitá modificar datos reales innecesariamente.
-
-## Forma de trabajo
-
-- Trabajá con autonomía y criterio propio. Resolvé las decisiones técnicas o visuales menores sin consultar.
-- Mantené las entregas breves y evitá los instructivos de vistas previas y los informes extensos.
-- Al finalizar cada tarea, indicá brevemente qué modificaste, qué verificaste y si quedan operaciones externas pendientes.
-- Actualizá `docs/PROJECT_STATUS.md` cuando corresponda.
-
-**Codex desarrolla localmente. El usuario controla GitHub y Vercel.**
+- Codex desarrolla y prueba con autonomía en `C:\Users\yvozzi\Downloads\MASOMENO`. Puede modificar archivos del proyecto, instalar dependencias y probar en localhost. Las decisiones menores de implementación y diseño quedan a su criterio.
+- Creá commits, subí cambios a [GitHub](https://github.com/pineaost/masomeno) y desplegá en Vercel solo por pedido expreso del usuario. Las consultas de Git están autorizadas. `git pull`, `git merge`, `git reset` y otras operaciones que puedan sobrescribir trabajo requieren autorización expresa.
+- Las migraciones se preparan y prueban en local. Aplicarlas en Supabase remoto requiere autorización expresa. La conexión existente se puede usar para pruebas autorizadas, evitando cambios innecesarios en datos reales.
+- Aplicá estas reglas en todas las sesiones sin reiterarlas en cada tarea.
+- Escribí respuestas y documentación precisas y concisas. Indicá qué cambió, qué se verificó y qué queda pendiente. Actualizá `docs/PROJECT_STATUS.md` cuando corresponda.

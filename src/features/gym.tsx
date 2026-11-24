@@ -29,9 +29,9 @@ export function Gym() {
 
   return (
     <>
-      <PageHeading title={nav('gym')} description={t('intro')} />
-      <section className="quick-section" aria-labelledby="lifts-heading">
-        <h2 id="lifts-heading">{t('favorites')}</h2>
+      <PageHeading title={nav('gym')} visuallyHidden />
+      <section className="gym-favorites" aria-labelledby="lifts-heading">
+        <div className="panel-heading"><h2 id="lifts-heading">{t('favorites')}</h2></div>
         <div className="gym-grid">
           {sampleLifts.map(({ name, loads }) => (
             <article className="panel gym-card" key={name}>

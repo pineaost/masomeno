@@ -36,18 +36,31 @@ export async function initializeAccount(client: NonNullable<ReturnType<typeof cr
   return error || !data ? null : readLocale(data.locale);
 }
 
+const readProfile = cache(async (id: string) => {
+  const supabase = await requestSupabase();
+  if (!supabase) return null;
+  const { data, error } = await supabase.from('profiles').select('display_name,birth_date,height_cm,time_zone')
+    .eq('id', id).maybeSingle();
+  return error ? null : data;
+});
+
+export async function readAccountName(locale: Locale) {
+  const { id } = await requireAccount(locale);
+  return (await readProfile(id))?.display_name?.trim() || null;
+}
+
 export async function readAccount(locale: Locale) {
   const access = await requireAccount(locale);
   const supabase = await requestSupabase();
   if (!supabase) redirect(loginPath(locale, 'unconfigured'));
 
   const [profile, preferences] = await Promise.all([
-    supabase.from('profiles').select('display_name,birth_date,height_cm,time_zone').eq('id', access.id).maybeSingle(),
+    readProfile(access.id),
     supabase.from('user_preferences').select('locale,weight_unit,height_unit,distance_unit').eq('user_id', access.id).maybeSingle(),
   ]);
-  if (profile.error || preferences.error || !profile.data || !preferences.data) {
+  if (preferences.error || !profile || !preferences.data) {
     redirect(loginPath(locale, 'unavailable'));
   }
 
-  return { email: access.email, profile: profile.data, preferences: preferences.data };
+  return { email: access.email, profile, preferences: preferences.data };
 }

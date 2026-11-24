@@ -1,12 +1,12 @@
 'use client';
 
-import { BookOpen, CalendarDays, Clock3, NotebookPen, Plus, Search } from 'lucide-react';
+import { BookOpen, CalendarDays, NotebookPen, Plus, Refrigerator } from 'lucide-react';
 import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { PageHeading } from '@/components/page-heading';
 import { localePath } from '@/i18n/config';
-import { sampleRecipes, type Meal } from './demo-data';
+import type { Meal } from './demo-data';
 import { useDemo } from './demo-provider';
 import { MealDialog } from './log-dialogs';
 import { MealList } from './meal-list';
@@ -15,6 +15,7 @@ const sections = [
   { id: 'diary', path: '/comidas', icon: NotebookPen },
   { id: 'recipes', path: '/comidas/recetario', icon: BookOpen },
   { id: 'plan', path: '/comidas/plan', icon: CalendarDays },
+  { id: 'fridge', path: '/comidas/heladera', icon: Refrigerator },
 ] as const;
 
 export function FoodNavigation({ section, demo }: { section: (typeof sections)[number]['id']; demo: boolean }) {
@@ -23,7 +24,7 @@ export function FoodNavigation({ section, demo }: { section: (typeof sections)[n
   return (
     <nav className="section-nav" aria-label={t('sections')}>
       {sections.map(({ id, path, icon: Icon }) => (
-        <Link href={localePath(locale, path)} key={id} prefetch={demo ? undefined : false}
+        <Link href={localePath(locale, path)} key={id} prefetch={demo ? undefined : false} className={id === 'fridge' ? 'fridge-link' : undefined}
           aria-current={id === section ? 'page' : undefined}>
           <Icon size={18} strokeWidth={1.8} aria-hidden />{t(id)}
         </Link>
@@ -32,40 +33,7 @@ export function FoodNavigation({ section, demo }: { section: (typeof sections)[n
   );
 }
 
-function RecipeExamples() {
-  const t = useTranslations('meals');
-  const locale = useLocale();
-  const [query, setQuery] = useState('');
-  const normalize = (text: string) => text.toLocaleLowerCase(locale).normalize('NFD').replace(/\p{M}/gu, '');
-  const recipes = sampleRecipes.filter((recipe) =>
-    normalize(`${t(recipe.name)} ${t(recipe.hint)}`).includes(normalize(query.trim())),
-  );
-
-  return (
-    <section className="panel section-panel">
-      <div className="panel-heading"><h2>{t('recipes')}</h2></div>
-      <label className="search-field">
-        <Search size={18} aria-hidden />
-        <input type="search" aria-label={t('search')} placeholder={t('search')} value={query}
-          onChange={(event) => setQuery(event.target.value)} />
-      </label>
-      {recipes.length ? (
-        <ul className="recipe-grid">
-          {recipes.map((recipe) => (
-            <li className="recipe" key={recipe.name}>
-              <span className="category-icon"><BookOpen size={20} aria-hidden /></span>
-              <h3>{t(recipe.name)}</h3>
-              <p>{t(recipe.hint)}</p>
-              <span className="recipe-time"><Clock3 size={15} aria-hidden />{t('minutes', { count: recipe.minutes })}</span>
-            </li>
-          ))}
-        </ul>
-      ) : <p className="empty-state" role="status">{t('noneFound')}</p>}
-    </section>
-  );
-}
-
-export function Food({ section }: { section: (typeof sections)[number]['id'] }) {
+export function Food({ section }: { section: 'diary' | 'plan' }) {
   const t = useTranslations('meals');
   const nav = useTranslations('nav');
   const home = useTranslations('home');
@@ -74,7 +42,7 @@ export function Food({ section }: { section: (typeof sections)[number]['id'] }) 
 
   return (
     <>
-      <PageHeading title={nav('meals')} description={t('intro')} />
+      <PageHeading title={section === 'plan' ? t('plan') : nav('meals')} visuallyHidden />
       <FoodNavigation section={section} demo />
       {section === 'diary' && (
         <section className="panel section-panel">
@@ -87,7 +55,6 @@ export function Food({ section }: { section: (typeof sections)[number]['id'] }) 
           <MealList meals={meals} onSelect={setOpen} />
         </section>
       )}
-      {section === 'recipes' && <RecipeExamples />}
       {section === 'plan' && (
         <section className="panel plan-empty">
           <span className="quick-icon accent"><CalendarDays size={22} aria-hidden /></span>

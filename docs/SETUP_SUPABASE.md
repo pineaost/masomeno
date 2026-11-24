@@ -4,7 +4,7 @@ El proyecto hospedado es **masomeno** (`uhefabgdptaxcvqdavkj`). El API de la app
 
 ## Migración
 
-El CLI confirmó las tres versiones aplicadas, incluida [20261124170000_open_registration.sql](../supabase/migrations/20261124170000_open_registration.sql). Mantené desactivado el hook **Before User Created**. La función anterior se eliminó al habilitar el registro abierto. [Migraciones con Supabase CLI](https://supabase.com/docs/guides/local-development/cli-workflows)
+Las seis migraciones están aplicadas en el proyecto hospedado. Incluyen el [registro abierto](../supabase/migrations/20261124170000_open_registration.sql), alimentación, el catálogo inicial y [heladera y recetario](../supabase/migrations/20261124182000_fridge_and_recipe_catalog.sql). Mantené desactivado el hook **Before User Created**. La función anterior se eliminó al habilitar el registro abierto. [Migraciones con Supabase CLI](https://supabase.com/docs/guides/local-development/cli-workflows)
 
 ## Activar correo y contraseña
 

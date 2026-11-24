@@ -15,17 +15,12 @@
     "removeConfirm": "Eliminare questa voce di esempio?",
     "invalid": "Controlla i dati inseriti."
   },
-  "nav": { "home": "Home", "meals": "Pasti", "progress": "Andamento", "gym": "Palestra", "settings": "Impostazioni" },
+  "nav": { "home": "Oggi", "meals": "Pasti", "progress": "Andamento", "gym": "Palestra", "settings": "Impostazioni", "options": "Opzioni dell’account", "back": "Indietro" },
   "home": {
-    "title": "La tua giornata, più o meno.",
-    "intro": "Una rapida occhiata a come va la giornata.",
     "actions": "Azioni rapide",
     "logMeal": "Registra un pasto",
-    "logMealHint": "Aggiungi quello che hai mangiato",
     "chooseMeal": "Cosa mangio oggi?",
-    "chooseMealHint": "Sfoglia il ricettario",
     "logWeight": "Registra il peso",
-    "logWeightHint": "Aggiungi una misurazione",
     "dailyMeals": "Pasti di oggi",
     "seeMeals": "Vedi il diario",
     "seeProgress": "Vedi l’andamento",
@@ -37,11 +32,10 @@
     "over": "Oltre l’obiettivo",
     "reached": "Obiettivo raggiunto",
     "estimate": "Valori approssimativi",
-    "summary": "{consumed} di {goal} kcal. {percentage}% dell’obiettivo.",
-    "overMessage": "Oggi ha vinto la gastronomia."
+    "summary": "{consumed} di {goal} kcal. {percentage}% dell’obiettivo."
   },
   "meals": {
-    "intro": "Quello che hai mangiato, che puoi cucinare e che hai in programma.",
+    "fridge": "Il mio frigo",
     "sections": "Sezioni dei pasti",
     "diary": "Diario",
     "recipes": "Ricettario",
@@ -59,20 +53,10 @@
     "kcal": "Calorie approssimative (kcal)",
     "exampleName": "Es. Insalata con pollo",
     "editMeal": "Modifica il pasto",
-    "search": "Cerca ricette di esempio",
-    "noneFound": "Nessuna ricetta corrisponde alla ricerca.",
-    "minutes": "{count} min",
-    "recipeA": "Insalata tiepida di ceci",
-    "recipeAHint": "Ceci, limone e verdure di stagione.",
-    "recipeB": "Frittata di patate e cipolle",
-    "recipeBHint": "Patate, uova e cipolle. Un classico.",
-    "recipeC": "Pasta al pomodoro e basilico",
-    "recipeCHint": "Pomodoro, aglio e basilico fresco.",
     "planTitle": "La tua settimana a tavola",
     "planEmpty": "La pianificazione di pranzi e cene sarà disponibile in una prossima fase."
   },
   "weight": {
-    "intro": "Lo storico delle pesate e la tendenza del tuo peso nel tempo.",
     "current": "Peso attuale",
     "initial": "Peso iniziale",
     "target": "Peso obiettivo",
@@ -93,7 +77,6 @@
     "emptyHistory": "Nessuna pesata registrata in questo periodo."
   },
   "gym": {
-    "intro": "Una panoramica dei tuoi esercizi principali e delle sessioni sul tapis roulant.",
     "favorites": "Esercizi principali",
     "last": "Ultimo carico",
     "best": "Miglior carico",
@@ -153,20 +136,92 @@
   },
   "empty": {
     "diary": {
-      "intro": "Il tuo diario alimentare.",
       "title": "Nessun pasto per ora",
       "hint": "La registrazione dei pasti sarà disponibile in una prossima fase."
     },
     "recipes": {
-      "intro": "La tua raccolta di ricette.",
       "title": "Nessuna ricetta per ora",
       "hint": "Il catalogo delle ricette arriverà in una prossima fase."
     },
     "plan": {
-      "intro": "La pianificazione dei tuoi pasti.",
       "title": "Nessun piano per ora",
       "hint": "La pianificazione settimanale sarà disponibile in una prossima fase."
     }
+  },
+  "nutrition": {
+    "repeatRecent": "Ripeti un pasto recente",
+    "repeatTitle": "Ripeti pasto",
+    "repeatEstimate": "Un alimento è cambiato nel catalogo. Puoi ripetere il pasto usando la stima precedente.",
+    "roughAmount": "Usa una quantità approssimativa o una misura domestica disponibile.",
+    "loading": "Caricamento dei pasti di oggi…",
+    "pending": "Il diario alimentare sarà disponibile dopo l’applicazione delle migrazioni.",
+    "unavailable": "Impossibile caricare i dati alimentari. Riprova.",
+    "goal": "Obiettivo calorico giornaliero",
+    "noGoal": "Non hai ancora impostato un obiettivo calorico.",
+    "setGoal": "Imposta obiettivo",
+    "editGoal": "Modifica obiettivo",
+    "goalValue": "{kcal} kcal al giorno",
+    "goalInput": "Obiettivo giornaliero (kcal)",
+    "goalHint": "La modifica vale da oggi. Lascia il campo vuoto per rimuovere l’obiettivo.",
+    "entryType": "Tipo di registrazione",
+    "catalog": "Catalogo alimenti",
+    "manual": "Inserimento manuale",
+    "optionalName": "Nome del pasto (facoltativo)",
+    "search": "Cerca alimenti",
+    "noResults": "Nessun alimento corrisponde alla ricerca.",
+    "emptyCatalog": "Il catalogo è vuoto. Puoi comunque registrare un pasto manualmente.",
+    "unverified": "Valori nutrizionali da verificare",
+    "raw": "Crudo",
+    "cooked": "Cotto",
+    "prepared": "Preparato",
+    "per100": "{kcal} kcal / 100 g",
+    "addFood": "Aggiungi alimento",
+    "removeFood": "Rimuovi {food}",
+    "removeMeal": "Elimina {meal}",
+    "removeConfirm": "Eliminare questo pasto dal diario?",
+    "amount": "Quantità",
+    "unit": "Unità",
+    "grams": "Grammi",
+    "egg": "Uovo grande",
+    "banana": "Banana media",
+    "tablespoon": "Cucchiaio",
+    "lineEstimate": "{grams} g · {kcal} kcal",
+    "mealTotal": "Totale stimato: {kcal} kcal",
+    "source": "Fonte"
+  },
+  "recipes": {
+    "filters": "Intensità delle ricette",
+    "all": "Tutte",
+    "light": "Leggera",
+    "medium": "Media",
+    "hearty": "Sostanziosa",
+    "extraHearty": "Molto sostanziosa",
+    "perServing": "{kcal} kcal a porzione",
+    "minutes": "{count} min",
+    "marked": "{available}/{total} ingredienti disponibili",
+    "missing": "{unavailable, plural, one {# non disponibile} other {# non disponibili}}",
+    "emptyFilter": "Non ci sono ancora ricette di questa intensità.",
+    "ingredients": "Ingredienti",
+    "servings": "{count, plural, one {# porzione} other {# porzioni}}",
+    "preparation": "Preparazione"
+  },
+  "recipeState": {
+    "pending": "Il ricettario sarà disponibile dopo l’applicazione della migrazione.",
+    "unavailable": "Impossibile caricare il ricettario. Riprova."
+  },
+  "fridge": {
+    "hint": "Tocca di nuovo un’opzione selezionata per deselezionarla.",
+    "search": "Cerca ingredienti",
+    "available": "Ce l’ho",
+    "unavailable": "Non ce l’ho",
+    "availableFood": "Ho {food}",
+    "unavailableFood": "Non ho {food}",
+    "noResults": "Nessun ingrediente corrisponde alla ricerca.",
+    "empty": "Il catalogo non contiene ancora ingredienti.",
+    "pending": "Il mio frigo sarà disponibile dopo l’applicazione della migrazione.",
+    "demo": "Il mio frigo salva le scelte quando accedi.",
+    "saveError": "Salvataggio non riuscito.",
+    "loadError": "Impossibile caricare il frigo. Riprova."
   },
   "tracking": {
     "loading": "Caricamento dei registri…",
@@ -202,7 +257,6 @@
     "load": "Carico ({unit})",
     "noLoads": "Nessun carico registrato per ora.",
     "loadChange": "Dal carico precedente",
-    "strengthIntro": "Carichi e storico delle prestazioni.",
     "strengthSummary": "Riepilogo dei carichi",
     "strengthChart": "Andamento del carico",
     "liftHistory": "Storico dei carichi",
@@ -216,7 +270,6 @@
     "recentSpeed": "Velocità media ({count, plural, one {# sessione} other {# sessioni}})",
     "runChange": "Rispetto alle 5 precedenti",
     "noRuns": "Nessuna sessione sul tapis roulant per ora.",
-    "runIntro": "Distanza, durata, velocità e ritmo per ogni sessione.",
     "runChart": "Andamento della velocità",
     "runHistory": "Storico del tapis roulant",
     "newRun": "Registra sessione",
@@ -228,7 +281,6 @@
     "shortChart": "Il grafico compare dopo due registrazioni."
   },
   "settings": {
-    "intro": "Scegli come visualizzare l’app.",
     "preferences": "Preferenze",
     "language": "Lingua",
     "weight": "Peso e carichi",

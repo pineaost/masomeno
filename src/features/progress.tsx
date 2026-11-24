@@ -43,7 +43,7 @@ export function Progress() {
 
   return (
     <>
-      <PageHeading title={nav('progress')} description={t('intro')}>
+      <PageHeading title={nav('progress')} visuallyHidden>
         <button className="button primary" type="button" onClick={() => setOpen(true)}>
           <Plus size={19} aria-hidden />{home('logWeight')}
         </button>

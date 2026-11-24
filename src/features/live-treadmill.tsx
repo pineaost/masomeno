@@ -27,7 +27,7 @@ export function LiveTreadmill({ locale, records, today, unit }: {
   return (
     <>
       <Link href={localePath(locale, '/gym')} prefetch={false} className="text-link">{nav('gym')}</Link>
-      <PageHeading title={gym('treadmill')} description={t('runIntro')}>
+      <PageHeading title={gym('treadmill')}>
         <AddRecordButton onClick={() => setModal('new')}>{t('newRun')}</AddRecordButton>
       </PageHeading>
       <section className="panel section-panel">

@@ -52,11 +52,12 @@ export function LiveGym({ locale, exercises, favoriteCards, runs, today, weightU
 
   return (
     <>
-      <PageHeading title={nav('gym')} description={gym('intro')}>
-        <AddRecordButton onClick={() => setModal('exercise')}>{t('newExercise')}</AddRecordButton>
-      </PageHeading>
-      <section className="quick-section">
-        <h2>{gym('favorites')}</h2>
+      <PageHeading title={nav('gym')} visuallyHidden />
+      <section className="gym-favorites">
+        <div className="panel-heading">
+          <h2>{gym('favorites')}</h2>
+          <AddRecordButton onClick={() => setModal('exercise')}>{t('newExercise')}</AddRecordButton>
+        </div>
         {favoriteCards.length ? (
           <div className="gym-grid">
             {favoriteCards.map((exercise) => (

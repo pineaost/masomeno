@@ -1,18 +1,17 @@
 export function PageHeading({
   title,
-  description,
+  visuallyHidden = false,
   children,
 }: {
   title: string;
-  description: string;
+  visuallyHidden?: boolean;
   children?: React.ReactNode;
 }) {
+  const heading = <h1 className={visuallyHidden ? 'sr-only' : undefined}>{title}</h1>;
+  if (visuallyHidden && !children) return heading;
   return (
-    <header className="page-heading">
-      <div>
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </div>
+    <header className={visuallyHidden ? 'page-actions' : 'page-heading'}>
+      {heading}
       {children}
     </header>
   );

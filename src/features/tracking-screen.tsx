@@ -23,9 +23,11 @@ async function Unavailable({ locale, path, section }: { locale: Locale; path: st
   const t = await getTranslations({ locale });
   return (
     <>
-      <PageHeading title={section === 'treadmill' ? t('gym.treadmill') : t(`nav.${section}`)}
-        description={t('tracking.loadError')} />
-      <a className="button secondary" href={localePath(locale, path)}>{t('tracking.retry')}</a>
+      <PageHeading title={section === 'treadmill' ? t('gym.treadmill') : t(`nav.${section}`)} visuallyHidden />
+      <p className="section-copy" role="status">{t('tracking.loadError')}</p>
+      <div className="tracking-card-actions">
+        <a className="button secondary" href={localePath(locale, path)}>{t('tracking.retry')}</a>
+      </div>
     </>
   );
 }
@@ -39,6 +41,10 @@ export async function TrackingOverview({ locale, screen }: { locale: Locale; scr
   }
 
   const data = await loadWeight(locale);
+  if (!data && screen === 'home') {
+    const t = await getTranslations({ locale, namespace: 'tracking' });
+    return <p className="empty-state" role="status">{t('loadError')}</p>;
+  }
   if (!data) return <Unavailable locale={locale} path={screen === 'home' ? '' : '/evolucion'} section={screen} />;
   return <LiveWeight locale={locale} {...data} now={now} compact={screen === 'home'} />;
 }

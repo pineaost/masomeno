@@ -48,7 +48,7 @@ export function LiveExercise({ locale, exercise, entries, unit, today }: {
   return (
     <>
       <Link href={gymPath} prefetch={false} className="text-link">{nav('gym')}</Link>
-      <PageHeading title={exercise.name} description={t('strengthIntro')}>
+      <PageHeading title={exercise.name}>
         <AddRecordButton onClick={() => setModal('new')}>{t('newLoad')}</AddRecordButton>
       </PageHeading>
       <section className="panel section-panel">

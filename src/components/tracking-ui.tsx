@@ -20,17 +20,18 @@ export function EditRecordButton({ onClick, label }: { onClick: () => void; labe
   );
 }
 
-export function RecordDialog({ title, close, save, remove, removePrompt, children }: {
+export function RecordDialog({ title, close, save, remove, removePrompt, startWithRemoval = false, children }: {
   title: string;
   close: () => void;
   save: TrackingAction;
   remove?: () => Promise<MutationResult>;
   removePrompt?: string;
+  startWithRemoval?: boolean;
   children: React.ReactNode;
 }) {
   const t = useTranslations('tracking');
   const app = useTranslations('app');
-  const [confirm, setConfirm] = useState(false);
+  const [confirm, setConfirm] = useState(startWithRemoval);
   const [error, setError] = useState<Exclude<MutationResult, 'saved'> | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -70,7 +71,10 @@ export function RecordDialog({ title, close, save, remove, removePrompt, childre
           {error && <p role="alert">{t(error)}</p>}
           <div className="form-actions">
             <button type="button" className="button secondary" disabled={pending}
-              onClick={() => { setError(null); setConfirm(false); }}>{app('cancel')}</button>
+              onClick={() => {
+                if (startWithRemoval) close();
+                else { setError(null); setConfirm(false); }
+              }}>{app('cancel')}</button>
             <button type="button" className="button primary" disabled={pending}
               onClick={(event) => run(remove, event.currentTarget.closest('dialog'))}>
               {pending ? t('saving') : app('remove')}

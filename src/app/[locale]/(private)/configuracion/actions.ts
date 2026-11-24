@@ -46,7 +46,7 @@ export async function saveProfile(currentLocale: Locale, _status: FormStatus, fi
   if (error?.code === '23514') return 'invalid';
   if (error || !data) return 'unavailable';
 
-  revalidatePath(localePath(locale, '/configuracion'));
+  revalidatePath(localePath(locale), 'layout');
   return 'saved';
 }
 

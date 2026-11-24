@@ -15,17 +15,12 @@
     "removeConfirm": "Delete this sample entry?",
     "invalid": "Check the information you entered."
   },
-  "nav": { "home": "Home", "meals": "Food", "progress": "Progress", "gym": "Gym", "settings": "Settings" },
+  "nav": { "home": "Today", "meals": "Food", "progress": "Progress", "gym": "Gym", "settings": "Settings", "options": "Account options", "back": "Back" },
   "home": {
-    "title": "Your day, give or take.",
-    "intro": "A quick look at how your day is going.",
     "actions": "Quick actions",
     "logMeal": "Log a meal",
-    "logMealHint": "Add something you ate",
     "chooseMeal": "What should I eat?",
-    "chooseMealHint": "Browse the recipes",
     "logWeight": "Log your weight",
-    "logWeightHint": "Add a measurement",
     "dailyMeals": "Today's meals",
     "seeMeals": "View food log",
     "seeProgress": "View progress",
@@ -37,11 +32,10 @@
     "over": "Above your goal",
     "reached": "Goal reached",
     "estimate": "Approximate values",
-    "summary": "{consumed} of {goal} kcal. {percentage}% of goal.",
-    "overMessage": "Today, food won."
+    "summary": "{consumed} of {goal} kcal. {percentage}% of goal."
   },
   "meals": {
-    "intro": "What you ate, what you can cook and what you plan to make.",
+    "fridge": "My fridge",
     "sections": "Food sections",
     "diary": "Food log",
     "recipes": "Recipes",
@@ -59,20 +53,10 @@
     "kcal": "Approximate calories (kcal)",
     "exampleName": "E.g. Chicken salad",
     "editMeal": "Edit meal",
-    "search": "Search sample recipes",
-    "noneFound": "No recipes match that search.",
-    "minutes": "{count} min",
-    "recipeA": "Warm chickpea salad",
-    "recipeAHint": "Chickpeas, lemon and seasonal vegetables.",
-    "recipeB": "Potato and onion omelette",
-    "recipeBHint": "Potatoes, eggs and onions. A classic.",
-    "recipeC": "Tomato and basil pasta",
-    "recipeCHint": "Tomato, garlic and fresh basil.",
     "planTitle": "Your week at the table",
     "planEmpty": "Lunch and dinner planning will arrive in a later stage."
   },
   "weight": {
-    "intro": "Your weigh-ins and how your weight has changed over time.",
     "current": "Current weight",
     "initial": "Starting weight",
     "target": "Goal weight",
@@ -93,7 +77,6 @@
     "emptyHistory": "No weigh-ins for this period yet."
   },
   "gym": {
-    "intro": "An overview of your main lifts and treadmill sessions.",
     "favorites": "Main exercises",
     "last": "Latest load",
     "best": "Best load",
@@ -153,20 +136,92 @@
   },
   "empty": {
     "diary": {
-      "intro": "Your food log.",
       "title": "No meals yet",
       "hint": "Meal logging will be available in a later stage."
     },
     "recipes": {
-      "intro": "Your recipe collection.",
       "title": "No recipes yet",
       "hint": "The recipe catalog will arrive in a later stage."
     },
     "plan": {
-      "intro": "Your meal planning.",
       "title": "No plan yet",
       "hint": "Weekly meal planning will be available in a later stage."
     }
+  },
+  "nutrition": {
+    "repeatRecent": "Repeat a recent meal",
+    "repeatTitle": "Repeat meal",
+    "repeatEstimate": "A food has changed in the library. You can repeat this meal using the previous estimate.",
+    "roughAmount": "Use an approximate amount or an available household measure.",
+    "loading": "Loading today’s meals…",
+    "pending": "The food diary will be available once the food migrations are applied.",
+    "unavailable": "We couldn’t load your food data. Please try again.",
+    "goal": "Daily calorie goal",
+    "noGoal": "You haven’t set a calorie goal yet.",
+    "setGoal": "Set a goal",
+    "editGoal": "Edit goal",
+    "goalValue": "{kcal} kcal per day",
+    "goalInput": "Daily goal (kcal)",
+    "goalHint": "This change starts today. Leave the field blank to clear your goal.",
+    "entryType": "Entry type",
+    "catalog": "Food library",
+    "manual": "Manual entry",
+    "optionalName": "Meal name (optional)",
+    "search": "Search foods",
+    "noResults": "No foods match your search.",
+    "emptyCatalog": "The library is empty. You can still log a meal manually.",
+    "unverified": "Nutrition data pending verification",
+    "raw": "Raw",
+    "cooked": "Cooked",
+    "prepared": "Prepared",
+    "per100": "{kcal} kcal / 100 g",
+    "addFood": "Add food",
+    "removeFood": "Remove {food}",
+    "removeMeal": "Delete {meal}",
+    "removeConfirm": "Delete this meal from your diary?",
+    "amount": "Amount",
+    "unit": "Unit",
+    "grams": "Grams",
+    "egg": "Large egg",
+    "banana": "Medium banana",
+    "tablespoon": "Tablespoon",
+    "lineEstimate": "{grams} g · {kcal} kcal",
+    "mealTotal": "Estimated total: {kcal} kcal",
+    "source": "Source"
+  },
+  "recipes": {
+    "filters": "Recipe intensity",
+    "all": "All",
+    "light": "Light",
+    "medium": "Medium",
+    "hearty": "Hearty",
+    "extraHearty": "Extra hearty",
+    "perServing": "{kcal} kcal per serving",
+    "minutes": "{count} min",
+    "marked": "{available}/{total} ingredients available",
+    "missing": "{unavailable, plural, one {# unavailable} other {# unavailable}}",
+    "emptyFilter": "There are no recipes at this intensity yet.",
+    "ingredients": "Ingredients",
+    "servings": "{count, plural, one {# serving} other {# servings}}",
+    "preparation": "Preparation"
+  },
+  "recipeState": {
+    "pending": "The recipe book will be available once the migration is applied.",
+    "unavailable": "We couldn’t load the recipe book. Try again."
+  },
+  "fridge": {
+    "hint": "Tap a selected option again to clear it.",
+    "search": "Search ingredients",
+    "available": "I have it",
+    "unavailable": "I don’t have it",
+    "availableFood": "I have {food}",
+    "unavailableFood": "I don’t have {food}",
+    "noResults": "No ingredients match your search.",
+    "empty": "There are no ingredients in the library yet.",
+    "pending": "My fridge will be available once the migration is applied.",
+    "demo": "My fridge saves your choices when you sign in.",
+    "saveError": "Couldn’t save.",
+    "loadError": "We couldn’t load your fridge. Try again."
   },
   "tracking": {
     "loading": "Loading entries…",
@@ -202,7 +257,6 @@
     "load": "Load ({unit})",
     "noLoads": "No lifts logged yet.",
     "loadChange": "Since previous lift",
-    "strengthIntro": "Loads and performance history.",
     "strengthSummary": "Lift summary",
     "strengthChart": "Load over time",
     "liftHistory": "Lift history",
@@ -216,7 +270,6 @@
     "recentSpeed": "Average speed ({count, plural, one {# session} other {# sessions}})",
     "runChange": "Versus the previous 5",
     "noRuns": "No treadmill sessions yet.",
-    "runIntro": "Distance, duration, speed and pace for each session.",
     "runChart": "Speed over time",
     "runHistory": "Treadmill history",
     "newRun": "Log a session",
@@ -228,7 +281,6 @@
     "shortChart": "The chart appears after two entries."
   },
   "settings": {
-    "intro": "Choose how you'd like to see the app.",
     "preferences": "Preferences",
     "language": "Language",
     "weight": "Weight and loads",

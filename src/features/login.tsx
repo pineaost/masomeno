@@ -1,6 +1,5 @@
 'use client';
 
-import { LogIn } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
@@ -75,7 +74,8 @@ export function Login({ locale, mode, initialNotice, enabled, submit }: {
           <>
             <button type="button" className="button secondary login-button" disabled={busy || !enabled}
               aria-busy={google.pending} onClick={signInWithGoogle}>
-              <LogIn size={19} aria-hidden />{t(google.pending ? 'pending' : 'continue')}
+              <Image src="/google-g.png" width={18} height={18} alt="" unoptimized />
+              {t(google.pending ? 'pending' : 'continue')}
             </button>
             <p className="auth-divider">{t('orEmail')}</p>
           </>

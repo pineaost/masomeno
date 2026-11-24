@@ -21,7 +21,7 @@ export function Settings() {
 
   return (
     <>
-      <PageHeading title={nav('settings')} description={t('intro')} />
+      <PageHeading title={nav('settings')} visuallyHidden />
       <section className="panel section-panel settings-panel">
         <div className="panel-heading"><h2>{t('preferences')}</h2></div>
         <PreferenceFields values={{ locale, weight_unit: weight, height_unit: height, distance_unit: distance }}
