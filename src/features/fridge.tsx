@@ -2,9 +2,10 @@
 
 import { Check, Minus, Pencil, Plus, Search, X } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useOptimistic, useState, useTransition } from 'react';
+import { useId, useOptimistic, useState, useTransition } from 'react';
 import { RecordDialog } from '@/components/tracking-ui';
 import type { Locale } from '@/i18n/config';
+import { localizedText } from '@/i18n/localized-text';
 import { matchesFoodName, type FoodAvailability } from '@/lib/food';
 import { ingredientNameKey, type FridgeFood, type FridgeSelection, type FridgeStatus, type PersonalFridgeIngredient } from '@/lib/recipe-catalog';
 import { deletePersonalIngredient, savePersonalIngredient, setFridgeIngredient, setPersonalIngredientStatus } from './food-actions';
@@ -13,6 +14,7 @@ export function FridgeControls({ locale, id, name, status }: {
   locale: Locale; id: string; name: string; status: FridgeStatus | null;
 }) {
   const t = useTranslations('fridge');
+  const statusId = useId();
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useOptimistic(status);
   const [error, setError] = useState(false);
@@ -31,7 +33,8 @@ export function FridgeControls({ locale, id, name, status }: {
   }
 
   return <div className="fridge-options">
-    <div className="periods" role="group" aria-label={name} aria-busy={pending}>
+    <div className="periods" role="group" aria-label={name} aria-describedby={statusId} aria-busy={pending}>
+      <span id={statusId} className="sr-only">{t(selected ?? 'unmarked')}</span>
       <button type="button" aria-pressed={selected === 'available'} disabled={pending}
         aria-label={t('availableFood', { food: name })} onClick={() => toggle('available')}>{t('available')}</button>
       <button type="button" aria-pressed={selected === 'unavailable'} disabled={pending}
@@ -70,7 +73,8 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
   const key = ingredientNameKey(query);
   const ingredients: Ingredient[] = [
     ...foods.map((food) => ({
-      id: food.id, name: food.names[locale], category: { id: food.category.id, name: food.category.names[locale] },
+      id: food.id, name: localizedText(food.names, locale) ?? t('ingredientName'),
+      category: { id: food.category.id, name: localizedText(food.category.names, locale) ?? t('category') },
       match: matchesFoodName(food, query), personal: false,
     })),
     ...personal.map((item) => ({
@@ -78,7 +82,7 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
       match: ingredientNameKey(item.name).includes(key), personal: true,
     })),
   ].toSorted((a, b) => a.name.localeCompare(b.name, locale));
-  const categories = new Map(foods.map(({ category: item }) => [item.id, item.names[locale]]));
+  const categories = new Map(foods.map(({ category: item }) => [item.id, localizedText(item.names, locale) ?? t('category')]));
   const available = ingredients.filter(({ id }) => marked.get(id) === 'available');
   const matches = ingredients.filter(({ match }) => match);
   const results = matches.filter((item) => !category || item.category.id === category);
@@ -127,11 +131,14 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
       {results.slice(0, limit).map((item) => {
         const status = marked.get(item.id);
         const has = status === 'available';
+        const statusId = `fridge-status-${item.id}`;
         return <li key={item.id}>
           <button type="button" className="fridge-result" aria-pressed={has} disabled={busy}
+            aria-label={t('availableFood', { food: item.name })} aria-describedby={statusId}
             onClick={() => mark(item, has ? null : 'available')}>
             {has ? <Check size={18} aria-hidden /> : <Plus size={18} aria-hidden />}
             <span><strong>{item.name}</strong><small>{status === 'unavailable' ? t('unavailable') : item.category.name}</small></span>
+            <span id={statusId} className="sr-only">{t(status ?? 'unmarked')}</span>
           </button>
           <button type="button" className="icon-button fridge-negative" disabled={busy}
             aria-pressed={status === 'unavailable'} aria-label={t('unavailableFood', { food: item.name })}

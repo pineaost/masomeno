@@ -6,7 +6,7 @@ import { setRequestLocale } from 'next-intl/server';
 import { isLocale, locales } from '@/i18n/config';
 import { getMessages } from '@/i18n/messages';
 import { palette } from '@/lib/palette';
-import { brandIcons } from '@/lib/brand';
+import { brandIcons, brandName } from '@/lib/brand';
 import '../globals.css';
 
 const manrope = localFont({
@@ -31,9 +31,9 @@ export async function generateMetadata({ params }: LocaleParams): Promise<Metada
   const messages = await getMessages(locale);
 
   return {
-    title: 'masomeno.',
+    title: brandName,
     description: messages.meta.description,
-    appleWebApp: { capable: true, title: 'masomeno.' },
+    appleWebApp: { capable: true, title: brandName },
     manifest: '/manifest.webmanifest',
     icons: {
       icon: { url: brandIcons.favicon.src, sizes: brandIcons.favicon.sizes, type: 'image/png' },

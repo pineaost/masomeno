@@ -12,8 +12,9 @@ export default async function RecipePage({ params, searchParams }: {
   searchParams: Promise<{ intensidad?: string | string[] }>;
 }) {
   const { locale, id } = await params;
-  if (!isLocale(locale) || !isTrackingId(id) || demoMode()) notFound();
+  if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
+  if (!isTrackingId(id) || demoMode()) notFound();
 
   const [data, query] = await Promise.all([loadRecipe(locale, id), searchParams]);
   if (data.state !== 'ready') {

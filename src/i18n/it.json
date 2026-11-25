@@ -1,7 +1,16 @@
 {
   "meta": { "description": "Il tuo diario personale di pasti, peso e allenamenti." },
+  "notFound": { "title": "Pagina non trovata", "back": "Torna a Oggi" },
+  "validation": {
+    "required": "Compila questo campo.",
+    "email": "Inserisci un indirizzo email valido.",
+    "number": "Inserisci un numero valido.",
+    "range": "Inserisci un valore nell’intervallo consentito.",
+    "tooShort": "Usa almeno {count, plural, one {# carattere} other {# caratteri}}.",
+    "invalid": "Controlla il valore inserito."
+  },
   "app": {
-    "tagline": "Più o meno, ma meglio.",
+    "tagline": "Dai, ci siamo quasi.",
     "demo": "Modalità demo",
     "demoNote": "Dati di esempio",
     "demoDetail": "I dati della demo si ripristinano quando ricarichi la pagina o cambi lingua.",
@@ -117,8 +126,8 @@
     "requestLink": "Richiedi un altro link",
     "recoverIntro": "Inserisci la tua email per richiedere un link di recupero.",
     "unavailable": "Il servizio di autenticazione non è disponibile al momento. Riprova.",
-    "unconfigured": "Configura la connessione a Supabase.",
-    "provider": "L’accesso con Google è ancora disabilitato in Supabase.",
+    "unconfigured": "L’accesso non è ancora configurato.",
+    "provider": "L’accesso con Google non è ancora attivo.",
     "oauth": "Impossibile completare l’accesso con Google. Riprova.",
     "expired": "La tua sessione è scaduta. Accedi di nuovo.",
     "invalidLink": "Il link è scaduto o è già stato usato. Richiedine uno nuovo.",
@@ -149,12 +158,14 @@
     }
   },
   "nutrition": {
+    "food": "Alimento",
+    "sourceFor": "Fonte nutrizionale per {food}",
     "repeatRecent": "Ripeti un pasto recente",
     "repeatTitle": "Ripeti pasto",
     "repeatEstimate": "Un alimento è cambiato nel catalogo. Puoi ripetere il pasto usando la stima precedente.",
     "roughAmount": "Usa una quantità approssimativa o una misura domestica disponibile.",
     "loading": "Caricamento dei pasti di oggi…",
-    "pending": "Il diario alimentare sarà disponibile dopo l’applicazione delle migrazioni.",
+    "pending": "Il diario alimentare non è ancora disponibile.",
     "unavailable": "Impossibile caricare i dati alimentari. Riprova.",
     "goal": "Obiettivo calorico giornaliero",
     "noGoal": "Non hai ancora impostato un obiettivo calorico.",
@@ -180,7 +191,6 @@
     "removeMeal": "Elimina {meal}",
     "removeConfirm": "Eliminare questo pasto dal diario?",
     "amount": "Quantità",
-    "unit": "Unità",
     "grams": "Grammi",
     "egg": "Uovo grande",
     "banana": "Banana media",
@@ -194,13 +204,14 @@
     "source": "Fonte"
   },
   "recipes": {
+    "untitled": "Ricetta senza titolo",
     "optional": "Facoltativo",
     "filters": "Intensità delle ricette",
     "all": "Tutte",
     "light": "Leggera",
     "medium": "Media",
     "hearty": "Sostanziosa",
-    "extraHearty": "Molto sostanziosa",
+    "extraHearty": "Bella carica",
     "perServing": "{kcal} kcal a porzione",
     "minutes": "{count} min",
     "marked": "{available}/{total} ingredienti disponibili",
@@ -211,10 +222,11 @@
     "preparation": "Preparazione"
   },
   "recipeState": {
-    "pending": "Il ricettario sarà disponibile dopo l’applicazione della migrazione.",
+    "pending": "Il ricettario non è ancora disponibile.",
     "unavailable": "Impossibile caricare il ricettario. Riprova."
   },
   "fridge": {
+    "unmarked": "Non contrassegnato",
     "category": "Categoria",
     "allCategories": "Tutte le categorie",
     "personal": "Personali",
@@ -228,7 +240,7 @@
     "ingredientName": "Nome dell’ingrediente",
     "removeIngredient": "Eliminare questo ingrediente personale?",
     "duplicate": "Esiste già un ingrediente con questo nome.",
-    "personalPending": "Applica la migrazione del mio frigo per salvare gli ingredienti personali.",
+    "personalPending": "Non puoi ancora salvare ingredienti personali.",
     "hint": "Tocca di nuovo un’opzione selezionata per deselezionarla.",
     "search": "Cerca ingredienti",
     "available": "Ce l’ho",
@@ -237,7 +249,7 @@
     "unavailableFood": "Non ho {food}",
     "noResults": "Nessun ingrediente corrisponde alla ricerca.",
     "empty": "Il catalogo non contiene ancora ingredienti.",
-    "pending": "Il mio frigo sarà disponibile dopo l’applicazione della migrazione.",
+    "pending": "Il mio frigo non è ancora disponibile.",
     "demo": "Il mio frigo salva le scelte quando accedi.",
     "saveError": "Salvataggio non riuscito.",
     "loadError": "Impossibile caricare il frigo. Riprova."
@@ -318,6 +330,8 @@
     "displayName": "Nome",
     "birthDate": "Data di nascita",
     "heightCm": "Altezza (cm)",
+    "heightFt": "Altezza (piedi)",
+    "heightIn": "Pollici",
     "timeZone": "Fuso orario",
     "saving": "Salvataggio…",
     "saved": "Modifiche salvate.",

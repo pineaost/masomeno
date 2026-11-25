@@ -1,13 +1,12 @@
 import type { MetadataRoute } from 'next';
-import { brandIcons } from '@/lib/brand';
+import { brandIcons, brandName } from '@/lib/brand';
 import { palette } from '@/lib/palette';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
     id: '/',
-    name: 'MASOMENO',
-    short_name: 'masomeno.',
-    lang: 'es',
+    name: brandName,
+    short_name: brandName,
     start_url: '/',
     scope: '/',
     display: 'standalone',

@@ -22,7 +22,11 @@ export function distanceInKm(value: number, unit: DistanceUnit) {
   return unit === 'mi' ? value * kmPerMile : value;
 }
 
-export function heightInFeetAndInches(cm: number) {
-  const inches = Math.round(cm / cmPerInch);
-  return { feet: Math.floor(inches / 12), inches: inches % 12 };
+export function heightInFeetAndInches(cm: number, precision = 0) {
+  const inches = Number((cm / cmPerInch).toFixed(precision));
+  return { feet: Math.floor(inches / 12), inches: Number((inches % 12).toFixed(precision)) };
+}
+
+export function heightInCentimeters(feet: number, inches: number) {
+  return (feet * 12 + inches) * cmPerInch;
 }

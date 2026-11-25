@@ -30,8 +30,7 @@ export async function savePreferences(currentLocale: Locale, _status: FormStatus
 
   const jar = await cookies();
   jar.set(localeCookie, values.locale, { ...localeCookieOptions, secure: authCookieOptions.secure });
-  revalidatePath(localePath(locale, '/configuracion'));
-  if (locale !== values.locale) redirect(localePath(values.locale, '/configuracion'), RedirectType.replace);
+  revalidatePath('/[locale]/configuracion', 'page');
   return 'saved';
 }
 

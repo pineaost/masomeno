@@ -3,6 +3,7 @@
 import { Pencil, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState, useTransition, type FormEvent } from 'react';
+import { useLocalizedValidation } from '@/i18n/form-validation';
 import type { MutationResult, TrackingAction } from '@/lib/tracking';
 import { Dialog } from './dialog';
 import { chartBounds, LineChart, type ChartPoint } from './line-chart';
@@ -32,6 +33,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
 }) {
   const t = useTranslations('tracking');
   const app = useTranslations('app');
+  const validation = useLocalizedValidation();
   const [confirm, setConfirm] = useState(startWithRemoval);
   const [error, setError] = useState<Exclude<MutationResult, 'saved'> | null>(null);
   const [pending, startTransition] = useTransition();
@@ -57,7 +59,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
 
   return (
     <Dialog title={title} onClose={close}>
-      <form onSubmit={submit} className="form-stack" hidden={confirm}>
+      <form onSubmit={submit} className="form-stack" hidden={confirm} {...validation}>
         <fieldset disabled={pending} className="form-stack">{children}</fieldset>
         {!confirm && error && <p role="alert">{error === 'duplicate' && duplicateMessage ? duplicateMessage : t(error)}</p>}
         <div className="form-actions">

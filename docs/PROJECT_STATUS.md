@@ -1,11 +1,12 @@
 # Estado de MASOMENO
 
-**24 de noviembre de 2026 · Normalización nutricional y preparación del Recetario implementadas en local.**
+**24 de noviembre de 2026 · Auditoría de idiomas y adaptación a escritorio y móvil implementada en local.**
 
 ## Estado funcional
 
 - La versión anterior está publicada en Vercel y el usuario confirmó el acceso con Google. Perfil, preferencias, peso, Gym y Cinta ya usan Supabase.
 - La navegación usa el orden Hoy, Evolución, Comidas y Gym en escritorio y móvil. El nombre queda en Configuración → Perfil, junto a los datos de la cuenta.
+- El idioma se guarda en la cuenta y se conserva al recargar y volver a iniciar sesión. El cambio mantiene el borrador del Perfil y la vuelta al Recetario con su filtro. La altura respeta la unidad elegida y Masomeno conserva su nombre en la interfaz, los metadatos y la PWA.
 - Hoy concentra el balance y el registro de comidas. El objetivo calórico se edita en esa tarjeta y conserva el historial por día local. Evolución mantiene el gráfico y los pesajes con indicadores más compactos.
 - Gym distribuye fuerza y cinta en dos columnas en escritorio y en vertical en móvil. Los destacados muestran la última carga y las repeticiones cuando se registraron.
 - Comidas permite repetir, editar o eliminar consumos y usar el catálogo o una estimación manual. La semilla ampliada deja 65 alimentos y 84 referencias, con estados de preparación, fuentes y medidas documentadas.
@@ -19,7 +20,8 @@
 
 ## Verificado
 
-- Pasaron TypeScript, ESLint, las 33 pruebas automatizadas y el build de producción. En PostgreSQL local se aplicó la secuencia completa de migraciones, se repitió la semilla y se verificaron porciones, sustituciones, guardado atómico de preparaciones, historial y RLS.
+- Se recorrieron los tres idiomas en Chrome de escritorio y con la emulación de iPhone 13 mini. Se comprobaron cambio de idioma, vuelta desde Configuración, recarga, acceso y recuperación simulados, modales, foco y desbordamientos hasta 320 px.
+- Pasaron TypeScript, ESLint, las 38 pruebas automatizadas y el build de producción. Las pruebas incluyen paridad de catálogos, parámetros de traducción, textos alternativos y conservación del destino al cambiar de idioma. En PostgreSQL local se verificaron la semilla repetible, las porciones, las sustituciones, el guardado de preparaciones, el historial y RLS.
 - En navegador local se verificaron las tres variantes de idioma, el orden de navegación, la distribución de Hoy y Gym en escritorio y móvil, y el foco de los controles. También se probaron la edición y persistencia del objetivo, el historial de Evolución, la última carga, las repeticiones y los ingredientes personales. Las pruebas usaron dos cuentas y PostgreSQL local con el transporte de Supabase simulado.
 - La consulta de solo lectura en Supabase `uhefabgdptaxcvqdavkj` confirmó las tres migraciones de alimentación, sus nueve tablas con RLS, las funciones de guardado y las 31 referencias verificadas del catálogo.
 - En navegador local se verificaron el botón de Google en escritorio y móvil, OAuth simulado, el formulario de correo y las rutas públicas del favicon, Apple Touch y PWA.

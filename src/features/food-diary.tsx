@@ -6,6 +6,7 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
 import { AddRecordButton, EditRecordButton, RecordDialog } from '@/components/tracking-ui';
 import { localePath, type Locale } from '@/i18n/config';
+import { localizedText } from '@/i18n/localized-text';
 import { localFormDateTime } from '@/lib/dates';
 import {
   foodAmount, matchesFood, maxMealLines, mealCalories, mealCategories, portionCalories, portionInGrams, totalCalories,
@@ -28,11 +29,12 @@ function CatalogPicker({ catalog, locale, onSelect }: {
   const t = useTranslations('nutrition');
   const format = useFormatter();
   const [query, setQuery] = useState('');
+  const foodName = (food: CatalogFood) => localizedText(food.food.names, locale) ?? t('food');
   const groups = new Map<string, { title: string; foods: CatalogFood[] }>();
   for (const food of catalog.filter((item) => matchesFood(item, query))
-    .sort((a, b) => a.food.names[locale].localeCompare(b.food.names[locale], locale))) {
+    .sort((a, b) => foodName(a).localeCompare(foodName(b), locale))) {
     const category = food.food.category;
-    const group = groups.get(category.id) ?? { title: category.names[locale], foods: [] };
+    const group = groups.get(category.id) ?? { title: localizedText(category.names, locale) ?? t('food'), foods: [] };
     group.foods.push(food);
     groups.set(category.id, group);
   }
@@ -54,8 +56,8 @@ function CatalogPicker({ catalog, locale, onSelect }: {
                 <li key={food.id}>
                   <button type="button" disabled={food.validation !== 'verified' || food.kcal_per_100g === null}
                     onClick={() => onSelect(food)}>
-                    <span><strong>{food.food.names[locale]}</strong>
-                      <small>{food.variant_names?.[locale] ?? t(food.preparation)}{food.is_estimate && <> · {t('estimate')}</>}</small>
+                    <span><strong>{foodName(food)}</strong>
+                      <small>{localizedText(food.variant_names, locale) ?? t(food.preparation)}{food.is_estimate && <> · {t('estimate')}</>}</small>
                     </span>
                     <small>{food.validation !== 'verified' || food.kcal_per_100g === null
                       ? t('unverified') : t('per100', { kcal: format.number(food.kcal_per_100g) })}</small>
@@ -177,11 +179,11 @@ function MealEditor({ meal, repeatName, mode, catalog, locale, dateTime, zone, c
             {lines.map((line, index) => {
               const serving = line.original?.unit !== 'g' && line.original ? line.original.unit : line.food.portion_unit;
               const result = nutrition[index];
-              const label = line.food.food.names[locale];
+              const label = localizedText(line.food.food.names, locale) ?? t('food');
               return <li key={line.key}>
                 <div className="food-line-heading">
                   <div><strong>{label}</strong>
-                    <small>{line.food.variant_names?.[locale] ?? t(line.food.preparation)}{line.food.is_estimate && <> · {t('estimate')}</>}</small>
+                    <small>{localizedText(line.food.variant_names, locale) ?? t(line.food.preparation)}{line.food.is_estimate && <> · {t('estimate')}</>}</small>
                   </div>
                   <button type="button" className="icon-button" aria-label={t('removeFood', { food: label })}
                     onClick={() => {
@@ -206,7 +208,7 @@ function MealEditor({ meal, repeatName, mode, catalog, locale, dateTime, zone, c
                 <div className="food-line-heading food-line-note">
                   <span>{result ? t('lineEstimate', { grams: number(result.grams), kcal: number(result.kcal) }) : '—'}</span>
                   {line.food.source_url && <a className="text-link" href={line.food.source_url} target="_blank"
-                    rel="noreferrer" title={line.food.source_description ?? undefined}>{t('source')}</a>}
+                    rel="noreferrer" aria-label={t('sourceFor', { food: label })}>{t('source')}</a>}
                 </div>
               </li>;
             })}
@@ -244,7 +246,7 @@ export function FoodDiary({ locale, meals, recent, catalog, zone, dateTime, init
 
   function mealName(meal: MealRecord) {
     const names = meal.components.toSorted((a, b) => a.position - b.position)
-      .map((line) => catalog.find((item) => item.id === line.food_reference_id)?.food.names[locale])
+      .map((line) => localizedText(catalog.find((item) => item.id === line.food_reference_id)?.food.names, locale))
       .filter(Boolean).join(', ');
     return meal.name ?? (names || categories(meal.category));
   }

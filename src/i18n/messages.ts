@@ -4,6 +4,12 @@ import type Spanish from './es.json';
 
 type Messages = typeof Spanish;
 
+declare module 'next-intl' {
+  interface AppConfig {
+    Messages: Messages;
+  }
+}
+
 const loaders = {
   es: () => import('./es.json').then((module) => module.default),
   en: () => import('./en.json').then((module) => module.default),

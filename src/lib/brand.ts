@@ -1,3 +1,5 @@
+export const brandName = 'Masomeno';
+
 export const brandIcons = {
   favicon: { src: '/favicon.png', sizes: '32x32' },
   small: { src: '/icon-192.png', sizes: '192x192' },

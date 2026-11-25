@@ -4,12 +4,13 @@ import { CircleUserRound } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { PageHeading } from '@/components/page-heading';
-import { localeCookie, localePath } from '@/i18n/config';
+import { localeCookie } from '@/i18n/config';
 import { readLocale } from '@/lib/auth-paths';
 import { rememberPreference, useUnit } from '@/lib/preferences';
+import { settingsPath } from '@/lib/settings-paths';
 import { PreferenceFields } from './preference-fields';
 
-export function Settings() {
+export function Settings({ backHref }: { backHref: string }) {
   const t = useTranslations('settings');
   const app = useTranslations('app');
   const nav = useTranslations('nav');
@@ -31,7 +32,7 @@ export function Settings() {
             if (values.distance_unit !== distance) setDistance(values.distance_unit);
             if (values.locale !== locale) {
               rememberPreference(localeCookie, values.locale);
-              router.replace(localePath(values.locale, '/configuracion'));
+              router.replace(settingsPath(values.locale, backHref), { scroll: false });
             }
           }} />
       </section>

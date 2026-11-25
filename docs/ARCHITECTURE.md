@@ -10,6 +10,7 @@
 
 ## Identidad y experiencia
 
+- Masomeno es el nombre en los tres idiomas, incluido el título y la PWA. El punto del logotipo es un detalle visual. Los textos de marca se adaptan al tono de cada idioma.
 - Hoy, Today y Oggi comparten la ruta principal. Cuando la navegación ya identifica la sección, el `h1` se conserva para tecnologías de asistencia. Los nombres de recetas y ejercicios, los títulos de bloques y las acciones útiles se mantienen visibles.
 - La navegación ordena Hoy, Evolución, Comidas y Gym. El nombre elegido por la cuenta se muestra en Perfil. Configuración y Cerrar sesión permanecen al pie de la navegación de escritorio y en las opciones de cuenta del móvil.
 - La paleta, Manrope y la carita sostienen la identidad. La carita sugiere «yo no fui», «y bueno, qué querés» o «lo volvería a hacer».
@@ -21,7 +22,8 @@
 - Google mantiene PKCE y el callback SSR. La pantalla de correo usa las operaciones de contraseña de Supabase Auth. El primer ingreso o la confirmación del correo crea el perfil y las preferencias de forma idempotente con el ID de Auth.
 - El manejador de correo llama a `verifyOtp` con el tipo exacto del enlace. La recuperación usa una cookie HttpOnly separada con duración de 15 minutos. La acción de recuperar cambia la contraseña vía Supabase Auth, cierra esa sesión temporal y vuelve al login.
 - `src/proxy.ts` renueva las cookies mediante Supabase SSR. La capa de acceso verifica la sesión con `getClaims()`. Las acciones de Configuración y seguimiento verifican la sesión antes de escribir. RLS usa `auth.uid()` y los permisos de las columnas para limitar las operaciones a su propietario.
-- Configuración guarda el perfil y las preferencias en Supabase. El idioma guardado se prioriza al volver de OAuth. La cookie local conserva el último idioma utilizado para Login. La altura del perfil se ingresa y guarda en centímetros.
+- Configuración guarda el perfil y las preferencias en Supabase. Guarda el idioma de la cuenta y actualiza la ruta y la cookie. Al cambiarlo se conserva la pantalla de vuelta, el filtro del Recetario y el borrador del Perfil. El selector de acceso conserva el modo y el formulario en memoria durante el cambio. La autenticación vuelve al idioma guardado en la cuenta.
+- Los catálogos de interfaz comparten claves y parámetros ICU. Los nombres y preparaciones estructurados intentan el idioma actual, después español y luego otra traducción disponible. Los nombres personales, marcas y textos de fuentes se conservan. Las fechas y los números se formatean con el idioma activo. El Perfil usa la unidad de altura elegida y guarda centímetros.
 
 ## Peso y entrenamiento
 

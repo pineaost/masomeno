@@ -1,7 +1,16 @@
 {
   "meta": { "description": "Your personal log for food, weight and workouts." },
+  "notFound": { "title": "We couldn’t find this page", "back": "Back to Today" },
+  "validation": {
+    "required": "Fill in this field.",
+    "email": "Enter a valid email address.",
+    "number": "Enter a valid number.",
+    "range": "Enter a value within the allowed range.",
+    "tooShort": "Use at least {count, plural, one {# character} other {# characters}}.",
+    "invalid": "Check the value in this field."
+  },
   "app": {
-    "tagline": "More or less, but better.",
+    "tagline": "We’re getting there.",
     "demo": "Demo mode",
     "demoNote": "Sample data",
     "demoDetail": "Demo entries reset when you reload the page or change the language.",
@@ -117,8 +126,8 @@
     "requestLink": "Request another link",
     "recoverIntro": "Enter your email address to request a password reset link.",
     "unavailable": "The authentication service is unavailable right now. Try again.",
-    "unconfigured": "The Supabase connection needs to be configured.",
-    "provider": "Google sign-in is still disabled in Supabase.",
+    "unconfigured": "Sign-in hasn’t been set up yet.",
+    "provider": "Google sign-in isn’t enabled yet.",
     "oauth": "Google sign-in couldn't be completed. Try again.",
     "expired": "Your session expired. Sign in again.",
     "invalidLink": "This link has expired or already been used. Request a new one.",
@@ -149,12 +158,14 @@
     }
   },
   "nutrition": {
+    "food": "Food",
+    "sourceFor": "Nutrition source for {food}",
     "repeatRecent": "Repeat a recent meal",
     "repeatTitle": "Repeat meal",
     "repeatEstimate": "A food has changed in the library. You can repeat this meal using the previous estimate.",
     "roughAmount": "Use an approximate amount or an available household measure.",
     "loading": "Loading today’s meals…",
-    "pending": "The food diary will be available once the food migrations are applied.",
+    "pending": "The food log isn’t available yet.",
     "unavailable": "We couldn’t load your food data. Please try again.",
     "goal": "Daily calorie goal",
     "noGoal": "You haven’t set a calorie goal yet.",
@@ -180,7 +191,6 @@
     "removeMeal": "Delete {meal}",
     "removeConfirm": "Delete this meal from your diary?",
     "amount": "Amount",
-    "unit": "Unit",
     "grams": "Grams",
     "egg": "Large egg",
     "banana": "Medium banana",
@@ -194,13 +204,14 @@
     "source": "Source"
   },
   "recipes": {
+    "untitled": "Untitled recipe",
     "optional": "Optional",
     "filters": "Recipe intensity",
     "all": "All",
     "light": "Light",
     "medium": "Medium",
     "hearty": "Hearty",
-    "extraHearty": "Extra hearty",
+    "extraHearty": "All out",
     "perServing": "{kcal} kcal per serving",
     "minutes": "{count} min",
     "marked": "{available}/{total} ingredients available",
@@ -211,10 +222,11 @@
     "preparation": "Preparation"
   },
   "recipeState": {
-    "pending": "The recipe book will be available once the migration is applied.",
+    "pending": "The recipe book isn’t available yet.",
     "unavailable": "We couldn’t load the recipe book. Try again."
   },
   "fridge": {
+    "unmarked": "Unmarked",
     "category": "Category",
     "allCategories": "All categories",
     "personal": "Personal",
@@ -228,7 +240,7 @@
     "ingredientName": "Ingredient name",
     "removeIngredient": "Remove this personal ingredient?",
     "duplicate": "An ingredient with that name already exists.",
-    "personalPending": "Apply the My fridge migration to save personal ingredients.",
+    "personalPending": "Personal ingredients can’t be saved yet.",
     "hint": "Tap a selected option again to clear it.",
     "search": "Search ingredients",
     "available": "I have it",
@@ -237,7 +249,7 @@
     "unavailableFood": "I don’t have {food}",
     "noResults": "No ingredients match your search.",
     "empty": "There are no ingredients in the library yet.",
-    "pending": "My fridge will be available once the migration is applied.",
+    "pending": "My fridge isn’t available yet.",
     "demo": "My fridge saves your choices when you sign in.",
     "saveError": "Couldn’t save.",
     "loadError": "We couldn’t load your fridge. Try again."
@@ -318,6 +330,8 @@
     "displayName": "Name",
     "birthDate": "Date of birth",
     "heightCm": "Height (cm)",
+    "heightFt": "Height (ft)",
+    "heightIn": "Inches",
     "timeZone": "Time zone",
     "saving": "Saving…",
     "saved": "Changes saved.",

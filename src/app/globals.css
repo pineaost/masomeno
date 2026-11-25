@@ -418,6 +418,8 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 }
 .dialog::backdrop { background: color-mix(in srgb, var(--deep) 66%, transparent); }
 .dialog-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.dialog-heading h2 { min-width: 0; overflow-wrap: anywhere; }
+.dialog-heading .icon-button { flex: none; }
 .icon-button { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 9px; }
 .icon-button:hover { background: var(--wash); }
 .dialog-note { margin-bottom: 12px; color: var(--muted); font-size: .875rem; }
@@ -462,6 +464,13 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
   .quick-action { flex-direction: column; align-items: flex-start; gap: 6px; padding: 9px 10px; }
   .quick-action .quick-icon { width: 34px; height: 34px; border-radius: 9px; }
   .quick-action strong { font-size: .8125rem; line-height: 1.24; overflow-wrap: anywhere; }
+  .recipe-detail .compact-food-list li { flex-wrap: wrap; }
+  .recipe-detail .compact-food-list li > :first-child { flex: 1 1 130px; }
+  .recipe-detail .fridge-options { max-width: 100%; }
+}
+
+@media (max-width: 959px) {
+  .main-nav a:focus-visible { outline-offset: -2px; }
 }
 
 @media (min-width: 600px) {
@@ -491,6 +500,7 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
   .demo-card small { font-size: .75rem; color: var(--muted); }
   .demo-mark { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: var(--peach-wash); font-size: 1.35rem; font-weight: 800; }
   .workspace { padding: 28px clamp(28px, 3.45vw, 58px) 35px; }
+  .calories-card { max-width: 900px; }
   .gym-overview { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-areas: "favorites treadmill" "exercises treadmill"; }
   .quick-section { margin-block: 23px; }
   .quick-grid, .home-grid { gap: 14px; }

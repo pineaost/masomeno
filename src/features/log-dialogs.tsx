@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslations } from 'next-intl';
 import { Dialog } from '@/components/dialog';
+import { useLocalizedValidation } from '@/i18n/form-validation';
 import { isCalendarDay } from '@/lib/dates';
 import { useUnit } from '@/lib/preferences';
 import { weightInKg } from '@/lib/units';
@@ -13,6 +14,7 @@ export function MealDialog({ meal, onClose }: { meal?: Meal; onClose: () => void
   const t = useTranslations('meals');
   const app = useTranslations('app');
   const home = useTranslations('home');
+  const validation = useLocalizedValidation();
   const { saveMeal, removeMeal } = useDemo();
   const [error, setError] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -50,7 +52,7 @@ export function MealDialog({ meal, onClose }: { meal?: Meal; onClose: () => void
           </div>
         </div>
       ) : (
-        <form className="form-stack" onSubmit={submit}>
+        <form className="form-stack" onSubmit={submit} {...validation}>
           <label>
             {t('name')}
             <input name="name" defaultValue={initialName} placeholder={t('exampleName')} maxLength={90} required />
@@ -80,6 +82,7 @@ export function WeightDialog({ onClose }: { onClose: () => void }) {
   const t = useTranslations('weight');
   const home = useTranslations('home');
   const app = useTranslations('app');
+  const validation = useLocalizedValidation();
   const { addWeight } = useDemo();
   const [unit] = useUnit('weight');
   const [error, setError] = useState(false);
@@ -100,7 +103,7 @@ export function WeightDialog({ onClose }: { onClose: () => void }) {
   return (
     <Dialog title={home('logWeight')} onClose={onClose}>
       <p className="dialog-note">{app('demoDetail')}</p>
-      <form className="form-stack" onSubmit={submit}>
+      <form className="form-stack" onSubmit={submit} {...validation}>
         <label>
           {t('weightInput', { unit })}
           <input name="weight" inputMode="decimal" type="number" min="0.1" step="any" required />

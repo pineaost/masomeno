@@ -3,12 +3,13 @@
 import { Dumbbell, House, LogOut, Settings, TrendingUp, Utensils } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRef } from 'react';
 import { useFormStatus } from 'react-dom';
 import { defaultLocale, isLocale, localePath, type Locale } from '@/i18n/config';
-import { brandIcons } from '@/lib/brand';
+import { brandIcons, brandName } from '@/lib/brand';
+import { settingsPath } from '@/lib/settings-paths';
 import { signOut } from '@/app/[locale]/(private)/configuracion/actions';
 
 const navigation = [
@@ -30,11 +31,20 @@ function AccountLinks({ demo, locale, pathname, onNavigate }: {
   demo: boolean; locale: Locale; pathname: string; onNavigate?: () => void;
 }) {
   const t = useTranslations('nav');
-  const settings = localePath(locale, '/configuracion');
+  const router = useRouter();
+  const settings = settingsPath(locale);
   const active = pathname === settings;
-  const href = active ? settings : `${settings}?${new URLSearchParams({ volver: pathname })}`;
+  const href = active ? settings : settingsPath(locale, pathname);
   return <>
-    <Link href={href} prefetch={demo ? undefined : false} onClick={onNavigate} aria-current={active ? 'page' : undefined}>
+    <Link href={href} prefetch={demo ? undefined : false} aria-current={active ? 'page' : undefined}
+      onNavigate={(event) => {
+        onNavigate?.();
+        const target = active ? href : settingsPath(locale, pathname + location.search);
+        if (target !== href) {
+          event.preventDefault();
+          router.push(target);
+        }
+      }}>
       <Settings size={20} strokeWidth={1.8} aria-hidden />{t('settings')}
     </Link>
     {!demo && <>
@@ -58,7 +68,7 @@ export function AppShell({ children, demo }: { children: React.ReactNode; demo: 
       <aside className="shell-sidebar">
         <Link href={localePath(locale)} prefetch={demo ? undefined : false} className="wordmark">
           <Image src={brandIcons.small.src} width={38} height={38} alt="" />
-          <span>masomeno<span className="wordmark-dot">.</span></span>
+          <span>{brandName}<span className="wordmark-dot" aria-hidden>.</span></span>
         </Link>
         {demo && <span className="mobile-demo demo-pill">{app('demo')}</span>}
         <button type="button" className="icon-button mobile-account-trigger" popoverTarget="mobile-account"

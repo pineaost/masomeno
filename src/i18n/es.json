@@ -1,5 +1,14 @@
 {
   "meta": { "description": "Tu bitácora personal de comidas, peso y entrenamiento." },
+  "notFound": { "title": "No encontramos esta página", "back": "Volver a Hoy" },
+  "validation": {
+    "required": "Completá este campo.",
+    "email": "Ingresá un correo válido.",
+    "number": "Ingresá un número válido.",
+    "range": "Ingresá un valor dentro del rango permitido.",
+    "tooShort": "Usá al menos {count, plural, one {# carácter} other {# caracteres}}.",
+    "invalid": "Revisá el valor de este campo."
+  },
   "app": {
     "tagline": "Más o menos, pero mejor.",
     "demo": "Modo demo",
@@ -117,8 +126,8 @@
     "requestLink": "Pedir otro enlace",
     "recoverIntro": "Ingresá tu correo para solicitar un enlace de recuperación.",
     "unavailable": "El servicio de autenticación no está disponible en este momento. Volvé a intentarlo.",
-    "unconfigured": "Falta configurar la conexión con Supabase.",
-    "provider": "El inicio de sesión con Google todavía no está habilitado en Supabase.",
+    "unconfigured": "El acceso todavía no está configurado.",
+    "provider": "El acceso con Google todavía no está habilitado.",
     "oauth": "No se pudo completar el ingreso con Google. Volvé a intentarlo.",
     "expired": "Tu sesión venció. Volvé a iniciar sesión.",
     "invalidLink": "El enlace venció o ya se usó. Solicitá uno nuevo.",
@@ -149,12 +158,14 @@
     }
   },
   "nutrition": {
+    "food": "Alimento",
+    "sourceFor": "Fuente nutricional de {food}",
     "repeatRecent": "Repetir una comida reciente",
     "repeatTitle": "Repetir comida",
     "repeatEstimate": "Algún alimento cambió en la biblioteca. Podés repetir esta comida con la estimación anterior.",
     "roughAmount": "Usá una cantidad aproximada o una medida disponible.",
     "loading": "Cargando las comidas de hoy…",
-    "pending": "El registro de comidas se habilitará cuando se apliquen las migraciones de alimentación.",
+    "pending": "El registro de comidas todavía no está disponible.",
     "unavailable": "No pudimos cargar la información de alimentación. Volvé a intentarlo.",
     "goal": "Objetivo calórico diario",
     "noGoal": "Todavía no definiste un objetivo calórico.",
@@ -180,7 +191,6 @@
     "removeMeal": "Eliminar {meal}",
     "removeConfirm": "¿Eliminar esta comida del registro?",
     "amount": "Cantidad",
-    "unit": "Unidad",
     "grams": "Gramos",
     "egg": "Huevo grande",
     "banana": "Banana mediana",
@@ -194,6 +204,7 @@
     "source": "Fuente"
   },
   "recipes": {
+    "untitled": "Receta sin nombre",
     "optional": "Opcional",
     "filters": "Intensidad de las recetas",
     "all": "Todas",
@@ -211,10 +222,11 @@
     "preparation": "Preparación"
   },
   "recipeState": {
-    "pending": "El recetario estará disponible al aplicar la migración.",
+    "pending": "El Recetario todavía no está disponible.",
     "unavailable": "No pudimos cargar el recetario. Volvé a intentarlo."
   },
   "fridge": {
+    "unmarked": "Sin marcar",
     "category": "Categoría",
     "allCategories": "Todas las categorías",
     "personal": "Personales",
@@ -228,7 +240,7 @@
     "ingredientName": "Nombre del ingrediente",
     "removeIngredient": "¿Eliminar este ingrediente personal?",
     "duplicate": "Ya existe un ingrediente con ese nombre.",
-    "personalPending": "Para guardar ingredientes personales, aplicá la migración de Mi heladera.",
+    "personalPending": "Todavía no se pueden guardar ingredientes personales.",
     "hint": "Tocá de nuevo una opción para dejarla sin marcar.",
     "search": "Buscar ingredientes",
     "available": "Tengo",
@@ -237,7 +249,7 @@
     "unavailableFood": "No tengo {food}",
     "noResults": "No encontramos ingredientes con esa búsqueda.",
     "empty": "Todavía no hay ingredientes en la biblioteca.",
-    "pending": "Mi heladera estará disponible al aplicar la migración.",
+    "pending": "Mi heladera todavía no está disponible.",
     "demo": "Mi heladera guarda la selección cuando entrás con tu cuenta.",
     "saveError": "No se guardó.",
     "loadError": "No pudimos cargar tu heladera. Volvé a intentarlo."
@@ -318,6 +330,8 @@
     "displayName": "Nombre",
     "birthDate": "Fecha de nacimiento",
     "heightCm": "Altura (cm)",
+    "heightFt": "Altura (pies)",
+    "heightIn": "Pulgadas",
     "timeZone": "Zona horaria",
     "saving": "Guardando…",
     "saved": "Cambios guardados.",
