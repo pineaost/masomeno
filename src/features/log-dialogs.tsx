@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl';
 import { Dialog } from '@/components/dialog';
 import { useLocalizedValidation } from '@/i18n/form-validation';
 import { isCalendarDay } from '@/lib/dates';
+import { parseDecimal } from '@/lib/decimal';
 import { useUnit } from '@/lib/preferences';
 import { weightInKg } from '@/lib/units';
 import { demoDay, mealCategories, type Meal } from './demo-data';
@@ -90,7 +91,9 @@ export function WeightDialog({ onClose }: { onClose: () => void }) {
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const fields = new FormData(event.currentTarget);
-    const kg = weightInKg(Number(fields.get('weight')), unit);
+    const value = fields.get('weight');
+    const amount = typeof value === 'string' ? parseDecimal(value) : null;
+    const kg = weightInKg(amount ?? NaN, unit);
     const day = String(fields.get('day') ?? '');
     if (!Number.isFinite(kg) || kg <= 0 || kg > 1000 || !isCalendarDay(day) || day > demoDay) {
       setError(true);
@@ -106,7 +109,7 @@ export function WeightDialog({ onClose }: { onClose: () => void }) {
       <form className="form-stack" onSubmit={submit} {...validation}>
         <label>
           {t('weightInput', { unit })}
-          <input name="weight" inputMode="decimal" type="number" min="0.1" step="any" required />
+          <input name="weight" inputMode="decimal" type="text" maxLength={16} required />
         </label>
         <label>
           {t('date')}

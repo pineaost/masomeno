@@ -130,8 +130,8 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
         <RecordDialog title={t('target')} close={close} save={saveWeightGoal.bind(null, locale, unit)}>
           <label>
             {t('weightInput', { unit })}
-            <input name="weight" type="number" inputMode="decimal" min="0.001" step="any"
-              defaultValue={goal === null ? '' : Number(displayWeight(goal, unit).toFixed(5))} />
+            <input name="weight" type="text" inputMode="decimal" maxLength={16}
+              defaultValue={goal === null ? '' : format.number(displayWeight(goal, unit), { useGrouping: false, maximumFractionDigits: 5 })} />
           </label>
           <p className="section-copy">{tracking('optionalGoal')}</p>
         </RecordDialog>
@@ -143,8 +143,8 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
           removePrompt={t('removeConfirm')} startWithRemoval={removing}>
           <label>
             {t('weightInput', { unit })}
-            <input name="weight" type="number" inputMode="decimal" min="0.001" step="any" required
-              defaultValue={entry ? Number(displayWeight(entry.weight_kg, unit).toFixed(5)) : ''} />
+            <input name="weight" type="text" inputMode="decimal" maxLength={16} required
+              defaultValue={entry ? format.number(displayWeight(entry.weight_kg, unit), { useGrouping: false, maximumFractionDigits: 5 }) : ''} />
           </label>
           <label>
             {tracking('dateTime')}

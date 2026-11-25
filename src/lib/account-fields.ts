@@ -1,5 +1,6 @@
 import { isLocale } from '../i18n/config.ts';
 import { isCalendarDay, localFormDateTime } from './dates.ts';
+import { parseDecimal } from './decimal.ts';
 import { readTimeZone } from './time-zones.ts';
 import type { Preferences, Profile } from './supabase/database';
 
@@ -28,12 +29,12 @@ export function parseProfile(fields: FormData): Profile | null {
 
   const displayName = name.trim();
   const timeZone = readTimeZone(zone.trim());
-  const heightCm = height === '' ? null : Number(height);
+  const heightCm = parseDecimal(height, 2);
   if (displayName.length > 100) return null;
   if (!timeZone) return null;
   if (day && (!isCalendarDay(day) || day < '1900-01-01' ||
     day > localFormDateTime(new Date().toISOString(), timeZone).slice(0, 10))) return null;
-  if (heightCm !== null && (!/^\d+(\.\d{1,2})?$/.test(height) || heightCm <= 0 || heightCm > 300)) return null;
+  if (height !== '' && (heightCm === null || heightCm <= 0 || heightCm > 300)) return null;
 
   return { display_name: displayName || null, birth_date: day || null, height_cm: heightCm, time_zone: timeZone };
 }

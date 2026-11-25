@@ -1,30 +1,18 @@
 'use client';
 
-import { Search } from 'lucide-react';
+import { Plus, Search, Trash2 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '@/i18n/config';
 import { localizedText } from '@/i18n/localized-text';
-import type { CatalogFood } from '@/lib/food';
+import { foodAmount, foodQuantityGrams, maxMealLines, preferredFoodUnit, type CatalogFood, type FoodSelection } from '@/lib/food';
 import { recipeEntries, recipeEntryDraft, recipeEntryKey, recipeEntryScore, recipeKinds } from '@/lib/recipe-catalog';
-import { recipeChoice, recipeIngredients, recipePart, recipeVariation, type IngredientChoice, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
+import { recipeChoice, recipeIngredientChoice, recipeIngredients, recipePart, recipeVariation, type IngredientChoice, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
+
+import { CatalogPicker, HouseholdAmount, QuickAmounts } from './food-picker';
 
 function recipeDraft(recipeId: string, part?: string): RecipeDraft {
   return { recipeId, part, servings: 1, choices: {}, quantities: {} };
-}
-
-export function QuickAmounts({ values, selected, onChange }: {
-  values: number[]; selected: number; onChange: (amount: number) => void;
-}) {
-  const t = useTranslations('nutrition');
-  const format = useFormatter();
-  if (!values.length) return null;
-  return <div className="periods food-portions" role="group" aria-label={t('quickAmounts')}>
-    {values.map((value) => <button key={value} type="button" aria-pressed={selected === value}
-      aria-label={t('amountValue', { amount: format.number(value) })} onClick={() => onChange(value)}>
-      {value === 0.5 ? '½' : value === 1.5 ? '1½' : format.number(value)}
-    </button>)}
-  </div>;
 }
 
 export function RecipePicker({ recipes, locale, select }: {
@@ -62,34 +50,72 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
 }) {
   const t = useTranslations('recipes');
   const n = useTranslations('nutrition');
+  const app = useTranslations('app');
   const format = useFormatter();
+  const [servingsInput, setServingsInput] = useState(() => String(draft.servings));
+  const [picking, setPicking] = useState(false);
+  const [focusedIngredient, setFocusedIngredient] = useState<string | null>(null);
+  const addedField = useRef<HTMLFieldSetElement>(null);
+  const addButton = useRef<HTMLButtonElement>(null);
   const part = recipePart(recipe, draft);
   const variant = recipeVariation(recipe, draft);
   const variants = part ? [] : recipe.variants ?? [];
-  const hasEdits = Object.keys(draft.choices).length > 0 || Object.keys(draft.quantities).length > 0 || Object.keys(draft.weights ?? {}).length > 0;
+  const additions = draft.additions ?? [];
   const slots = recipeIngredients(recipe, part).toSorted((a, b) => a.position - b.position);
+  const hasEdits = [draft.choices, draft.quantities, draft.weights, draft.measures, draft.additions]
+    .some((fields) => fields && Object.keys(fields).length);
+  const included = slots.filter((slot) => recipeChoice(slot, draft.choices[slot.position]) !== 'omit');
+  const includedIds = new Set([
+    ...included.map((slot) => recipeIngredientChoice(slot, recipe.alternatives, recipeChoice(slot, draft.choices[slot.position]))?.food_reference_id),
+    ...additions.map(({ referenceId }) => referenceId),
+  ]);
+  useEffect(() => {
+    if (focusedIngredient) addedField.current?.querySelector('input')?.focus();
+  }, [focusedIngredient]);
 
-  function changeWeight(position: number, value: string) {
-    const weights = { ...draft.weights };
-    if (value) weights[position] = Number(value);
-    else delete weights[position];
-    update({ ...draft, weights });
+  function changeServings(value: string) {
+    setServingsInput(value);
+    update({ ...draft, servings: foodAmount(value, 1000) ?? 0 });
   }
+
+  function changeChoice(position: number, choice: IngredientChoice) {
+    const weights = { ...draft.weights };
+    const quantities = { ...draft.quantities };
+    const measures = { ...draft.measures };
+    delete weights[position];
+    delete quantities[position];
+    delete measures[position];
+    update({ ...draft, choices: { ...draft.choices, [position]: choice }, weights, quantities, measures });
+  }
+
+  function addIngredient(food: CatalogFood) {
+    const unit = preferredFoodUnit(food);
+    update({ ...draft, additions: [...additions, { referenceId: food.id, amount: unit === 'g' ? '' : '1', unit }] });
+    setFocusedIngredient(food.id);
+    setPicking(false);
+  }
+
+  function changeAddition(index: number, next?: FoodSelection) {
+    update({ ...draft, additions: next ? additions.map((item, position) => position === index ? next : item)
+      : additions.filter((_, position) => position !== index) });
+  }
+
+  const gramsLabel = (grams: number) => n('estimatedWeight', { grams: format.number(grams, { maximumFractionDigits: 2 }) });
 
   return <>
     <div className="meal-quantity-controls">
       <label>{recipe.purchase_unit === 'slice' ? t('slice') : recipe.purchase_unit === 'unit' ? n('unit') : n('servingCount')}
-        <input type="number" min=".01" max="1000" step=".01" inputMode="decimal"
-          value={draft.servings || ''} onChange={(event) => update({ ...draft, servings: Number(event.target.value) })} />
+        <input type="text" inputMode="decimal" maxLength={8}
+          value={servingsInput} onChange={(event) => changeServings(event.target.value)} />
       </label>
-      <QuickAmounts values={[0.5, 1, 1.5, 2]} selected={draft.servings} onChange={(servings) => update({ ...draft, servings })} />
+      <QuickAmounts values={[0.5, 1, 1.5, 2]} selected={draft.servings} onChange={(servings) => changeServings(String(servings))} />
     </div>
     {recipe.purchase_unit && <small>{t('purchaseEstimate')}</small>}
     <details className="recipe-options">
       <summary>{t('customize')}</summary>
       {!!recipe.parts?.length && <label>{t('choosePart')}
         <select aria-label={t('choosePart')} value={draft.part ?? ''} onChange={(event) => {
-          update({ ...recipeDraft(recipe.id, event.target.value || undefined), servings: draft.servings });
+          update({ ...recipeDraft(recipe.id, event.target.value || undefined), servings: draft.servings, additions });
         }}>
           <option value="">{t('wholeRecipe')}</option>
           {recipe.parts.map((option) => <option key={option.id} value={option.id}>{localizedText(option.names, locale)}</option>)}
@@ -99,7 +125,7 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
         <select aria-label={t('variation')} value={variant ? String(variants.indexOf(variant)) : hasEdits ? 'custom' : ''}
           onChange={(event) => {
             const chosen = event.target.value === '' ? undefined : variants[Number(event.target.value)];
-            update({ ...draft, choices: chosen?.choices ?? {}, quantities: {}, weights: {} });
+            update({ ...draft, choices: chosen?.choices ?? {}, quantities: {}, weights: {}, measures: {} });
           }}>
           <option value="">{t('base')}</option>
           <option value="custom" disabled>{t('customVariation')}</option>
@@ -111,22 +137,19 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
         if (!ref) return null;
         const label = localizedText(ref.food.names, locale) ?? n('food');
         const alternatives = recipe.alternatives.filter(({ ingredient_position }) => ingredient_position === slot.position);
-        const selected = recipeChoice(slot, draft.choices[slot.position]);
-        const active = alternatives.find(({ position }) => position === selected);
-        const activeRef = active ? refs.get(active.food_reference_id) : ref;
-        const baseGrams = (active?.grams ?? slot.grams ?? 0) * draft.servings / recipe.base_servings;
-        const defaultCount = activeRef?.portion_grams ? Number((baseGrams / activeRef.portion_grams).toFixed(2)) : 0;
+        const choice = recipeChoice(slot, draft.choices[slot.position]);
+        const active = recipeIngredientChoice(slot, alternatives, choice);
+        const activeRef = refs.get(active?.food_reference_id ?? '');
+        const baseGrams = (active?.grams ?? 0) * draft.servings / recipe.base_servings;
         const quantity = draft.quantities[slot.position];
+        const weight = draft.weights?.[slot.position] ?? (quantity && activeRef?.portion_grams ? quantity * activeRef.portion_grams : baseGrams);
+        const measure = draft.measures?.[slot.position] ?? { amount: weight > 0 ? String(Number(weight.toFixed(2))) : '', unit: 'g' };
+        const grams = activeRef && foodQuantityGrams(measure, activeRef);
         return <div className="recipe-option" key={slot.position}>
-          {(alternatives.length > 0 || slot.is_optional) && <label>{label}
-            <select aria-label={label} value={selected} onChange={(event) => {
+          <label>{label}
+            <select aria-label={label} value={choice} onChange={(event) => {
               const value = event.target.value;
-              const choice: IngredientChoice = value === 'omit' || value === 'default' ? value : Number(value);
-              const weights = { ...draft.weights };
-              const quantities = { ...draft.quantities };
-              delete weights[slot.position];
-              delete quantities[slot.position];
-              update({ ...draft, choices: { ...draft.choices, [slot.position]: choice }, weights, quantities });
+              changeChoice(slot.position, value === 'omit' || value === 'default' ? value : Number(value));
             }}>
               <option value="default">{label}</option>
               {alternatives.map(({ position, food_id, food_reference_id, grams }) => {
@@ -138,21 +161,46 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
                   {food_reference_id === ref.id && localizedText(alternate.variant_names, locale) && ` · ${format.number(grams)} g`}
                 </option>;
               })}
-              {slot.is_optional && <option value="omit">{t('omit')}</option>}
+              <option value="omit">{t('omit')}</option>
             </select>
-          </label>}
-          {selected !== 'omit' && (slot.adjustable_quantity && activeRef?.portion_unit ? <label>
-            {t('ingredientCount', { food: localizedText(activeRef.food.names, locale) ?? label })} · {t(`measures.${activeRef.portion_unit}`)}
-            <input type="number" inputMode="decimal" min=".01" max="1000" step=".01"
-              value={quantity ?? (defaultCount || '')}
-              onChange={(event) => update({ ...draft, quantities: { ...draft.quantities, [slot.position]: Number(event.target.value) } })} />
-          </label> : <label>{t('ingredientWeight', { food: localizedText(activeRef?.food.names, locale) ?? label })}
-            <input type="number" inputMode="decimal" min=".01" max="10000" step=".01"
-              placeholder={format.number(baseGrams, { maximumFractionDigits: 2 })}
-              value={draft.weights?.[slot.position] ?? ''} onChange={(event) => changeWeight(slot.position, event.target.value)} />
-          </label>)}
+          </label>
+          {activeRef && choice !== 'omit' && <details className="recipe-ingredient-quantity">
+            <summary>{t('editIngredientAmount', { food: localizedText(activeRef.food.names, locale) ?? label })}
+              {grams && ` · ${gramsLabel(grams)}`}</summary>
+            <HouseholdAmount food={activeRef} {...measure} grams={grams ?? undefined}
+              onChange={(amount, unit) => update({ ...draft, measures: { ...draft.measures, [slot.position]: { amount, unit } } })} />
+          </details>}
         </div>;
       })}
+      {additions.map((ingredient, index) => {
+        const food = refs.get(ingredient.referenceId);
+        if (!food) return null;
+        const name = localizedText(food.food.names, locale) ?? n('food');
+        return <fieldset key={ingredient.referenceId} className="recipe-option recipe-extra"
+          ref={focusedIngredient === ingredient.referenceId ? addedField : undefined}>
+          <legend>{name}</legend>
+          <HouseholdAmount food={food} {...ingredient} grams={foodQuantityGrams(ingredient, food) ?? undefined}
+            onChange={(amount, unit) => changeAddition(index, { ...ingredient, amount, unit })} />
+          <button type="button" className="button secondary" onClick={() => {
+            changeAddition(index);
+            if (focusedIngredient === ingredient.referenceId) setFocusedIngredient(null);
+            addButton.current?.focus();
+          }}>
+            <Trash2 size={16} aria-hidden />{t('removeIngredient', { food: name })}
+          </button>
+        </fieldset>;
+      })}
+      <button type="button" className="button secondary add-recipe-ingredient" aria-expanded={picking} ref={addButton}
+        disabled={included.length + additions.length >= maxMealLines}
+        onClick={() => setPicking(!picking)}><Plus size={17} aria-hidden />{t('addIngredient')}</button>
+      {picking && <div className="recipe-add-picker">
+        <CatalogPicker catalog={[...refs.values()].filter(({ id }) => !includedIds.has(id))}
+          locale={locale} onSelect={addIngredient} autoFocus />
+        <button className="button secondary" type="button" onClick={() => {
+          setPicking(false);
+          addButton.current?.focus();
+        }}>{app('cancel')}</button>
+      </div>}
     </details>
   </>;
 }

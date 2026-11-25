@@ -1,4 +1,5 @@
-import { portionCalories, totalCalories, type FoodNames, type FoodReference, type FoodUnit } from './food.ts';
+import { foodAmount, foodQuantityGrams, maxMealLines, portionCalories, totalCalories, validFoodQuantity,
+  type FoodNames, type FoodQuantity, type FoodReference, type FoodSelection, type FoodUnit } from './food.ts';
 import { isTrackingId } from './tracking-fields.ts';
 import type { RecipeIntensity, RecipeKind } from './recipe-catalog.ts';
 
@@ -40,6 +41,8 @@ export type RecipeDraft = {
   quantities: Record<string, number>;
   part?: string;
   weights?: Record<string, number>;
+  measures?: Record<string, FoodQuantity>;
+  additions?: FoodSelection[];
 };
 export type RecipeForLog = {
   id: string;
@@ -107,8 +110,7 @@ export function resolveRecipe(
       if (!ingredient.is_optional) return null;
       continue;
     }
-    const selected = choice === 'default' ? ingredient
-      : alternatives.find((item) => item.ingredient_position === ingredient.position && item.position === choice);
+    const selected = recipeIngredientChoice(ingredient, alternatives, choice);
     const referenceId = selected?.food_reference_id;
     const reference = referenceId ? references.get(referenceId) : undefined;
     if (!referenceId || !reference || reference.validation === 'pending' || reference.kcal_per_100g === null || !selected?.grams) return null;
@@ -144,12 +146,49 @@ export function draftRecipeName(recipe: RecipeForLog, draft: RecipeDraft) {
 
 export function resolveRecipeDraft(recipe: RecipeForLog, draft: RecipeDraft, references: ReferenceIndex) {
   const part = recipePart(recipe, draft);
-  if (draft.part && !part) return null;
+  if ((draft.part && !part) || !validPortionAmount(draft.servings)) return null;
   const ingredients = recipeIngredients(recipe, part);
-  const choices = new Map(Object.entries(draft.choices).map(([position, choice]) => [Number(position), choice]));
-  const quantities = new Map(Object.entries(draft.quantities).map(([position, amount]) => [Number(position), amount]));
-  const weights = new Map(Object.entries(draft.weights ?? {}).map(([position, weight]) => [Number(position), weight]));
-  return resolveRecipe(ingredients, recipe.base_servings, draft.servings, references, recipe.alternatives, choices, quantities, weights);
+  const positions = new Set(ingredients.map(({ position }) => String(position)));
+  const draftFields = [draft.choices, draft.quantities, draft.weights ?? {}, draft.measures ?? {}];
+  if (draftFields.some((fields) => Object.keys(fields).some((position) => !positions.has(position)))) return null;
+
+  const included = ingredients.filter((ingredient) => recipeChoice(ingredient, draft.choices[ingredient.position]) !== 'omit');
+  const choices = new Map<number, IngredientChoice>();
+  const quantities = new Map<number, number>();
+  const weights = new Map<number, number>();
+  for (const ingredient of included) {
+    const { position } = ingredient;
+    const choice = recipeChoice(ingredient, draft.choices[position]);
+    if (choice === 'omit') continue;
+    choices.set(position, choice);
+    const quantity = draft.quantities[position];
+    if (quantity !== undefined) quantities.set(position, quantity);
+    const measure = draft.measures?.[position];
+    const weight = draft.weights?.[position];
+    if (weight !== undefined) weights.set(position, weight);
+    if (measure) {
+      const selected = recipeIngredientChoice(ingredient, recipe.alternatives, choice);
+      const reference = selected?.food_reference_id && references.get(selected.food_reference_id);
+      const grams = reference && foodQuantityGrams(measure, reference);
+      if (!grams) return null;
+      weights.set(position, grams);
+    }
+  }
+  const lines = included.length ? resolveRecipe(included, recipe.base_servings, draft.servings, references,
+    recipe.alternatives, choices, quantities, weights) : [];
+  if (!lines) return null;
+  for (const addition of draft.additions ?? []) {
+    const reference = references.get(addition.referenceId);
+    const grams = reference && foodQuantityGrams(addition, reference);
+    if (!grams) return null;
+    lines.push({ referenceId: addition.referenceId, grams });
+  }
+  return lines.length && lines.length <= maxMealLines ? lines : null;
+}
+
+export function recipeIngredientChoice(ingredient: RecipeIngredient, alternatives: RecipeAlternative[], choice: IngredientChoice) {
+  return choice === 'default' ? ingredient
+    : alternatives.find((item) => item.ingredient_position === ingredient.position && item.position === choice);
 }
 
 function boundedMap<T>(value: unknown, validate: (value: unknown) => value is T): value is Record<string, T> {
@@ -171,7 +210,11 @@ export function isRecipeDraft(value: unknown): value is RecipeDraft {
     boundedMap(draft.choices, (choice): choice is IngredientChoice =>
       choice === 'default' || choice === 'omit' || (typeof choice === 'number' && Number.isInteger(choice) && choice > 0 && choice <= 30)) &&
     boundedMap(draft.quantities, validPortionAmount) &&
-    (draft.weights === undefined || boundedMap(draft.weights, (weight): weight is number => validPortionAmount(weight, 10000)));
+    (draft.weights === undefined || boundedMap(draft.weights, (weight): weight is number => validPortionAmount(weight, 10000))) &&
+    (draft.measures === undefined || boundedMap(draft.measures, validFoodQuantity)) &&
+    (draft.additions === undefined || (Array.isArray(draft.additions) && draft.additions.length <= maxMealLines &&
+      draft.additions.every((item) => typeof item?.referenceId === 'string' && /^[a-z0-9-]{1,80}$/.test(item.referenceId) &&
+        validFoodQuantity(item))));
 }
 
 export function parseRecipeDrafts(value: FormDataEntryValue | null): RecipeDraft[] | null {
@@ -194,8 +237,8 @@ export function parseRecipeDrafts(value: FormDataEntryValue | null): RecipeDraft
 export function parseRecordedPortions(fields: FormData, groups?: PreparationSnapshot[]) {
   const values = fields.getAll('recordedServings');
   if (values.length < 1 || values.length > 30) return null;
-  const portions = values.map((value, index) => value === '0' ? 0 :
-    typeof value === 'string' && validPortionAmount(Number(value), groups?.[index]?.measureUnit ? 10000 : 1000) ? Number(value) : null);
+  const portions = values.map((value, index) => typeof value === 'string'
+    ? foodAmount(value, groups?.[index]?.measureUnit ? 10000 : 1000) : null);
   return portions.every((value): value is number => value !== null) && portions.some((value) => value > 0) ? portions : null;
 }
 

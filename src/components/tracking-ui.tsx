@@ -22,7 +22,7 @@ export function EditRecordButton({ onClick, label }: { onClick: () => void; labe
   );
 }
 
-export function RecordDialog({ title, close, save, remove, removePrompt, duplicateMessage, startWithRemoval = false, canSave = true, footer, children }: {
+export function RecordDialog({ title, close, save, remove, removePrompt, duplicateMessage, startWithRemoval = false, canSave = true, footer, children, fitViewport }: {
   title: string;
   close: () => void;
   save: TrackingAction;
@@ -32,6 +32,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
   startWithRemoval?: boolean;
   canSave?: boolean;
   footer?: React.ReactNode;
+  fitViewport?: boolean;
   children: React.ReactNode;
 }) {
   const t = useTranslations('tracking');
@@ -62,7 +63,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
   }
 
   return (
-    <Dialog title={title} onClose={close}>
+    <Dialog title={title} onClose={close} fitViewport={fitViewport}>
       <form onSubmit={submit} className="form-stack" hidden={confirm} {...validation}>
         <fieldset disabled={pending} className="form-stack">{children}</fieldset>
         {!confirm && error && <p role="alert">{error === 'duplicate' && duplicateMessage ? duplicateMessage : t(error)}</p>}

@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { RecordDialog } from '@/components/tracking-ui';
 import type { Locale } from '@/i18n/config';
@@ -30,6 +30,7 @@ export function StrengthForm({ locale, exercise, unit, timeZone, entry, close }:
 }) {
   const t = useTranslations('training');
   const weight = useTranslations('weight');
+  const format = useFormatter();
   const [today] = useState(() => localFormDateTime(new Date().toISOString(), timeZone).slice(0, 10));
   return (
     <RecordDialog title={t(entry ? 'editLoad' : 'newLoad')} close={close}
@@ -37,8 +38,8 @@ export function StrengthForm({ locale, exercise, unit, timeZone, entry, close }:
       remove={entry ? deleteStrength.bind(null, locale, exercise.id, entry.id) : undefined}>
       <label>
         {t('load', { unit })}
-        <input name="load" type="number" inputMode="decimal" min="0" step="any" required
-          defaultValue={entry ? Number(displayWeight(entry.load_kg, unit).toFixed(5)) : undefined} />
+        <input name="load" type="text" inputMode="decimal" maxLength={16} required
+          defaultValue={entry ? format.number(displayWeight(entry.load_kg, unit), { useGrouping: false, maximumFractionDigits: 5 }) : undefined} />
       </label>
       <label>
         {t('repetitionsInput')}
@@ -58,6 +59,7 @@ export function TreadmillForm({ locale, unit, timeZone, entry, close }: {
 }) {
   const t = useTranslations('training');
   const weight = useTranslations('weight');
+  const format = useFormatter();
   const [today] = useState(() => localFormDateTime(new Date().toISOString(), timeZone).slice(0, 10));
   return (
     <RecordDialog title={t(entry ? 'editRun' : 'newRun')} close={close}
@@ -65,8 +67,8 @@ export function TreadmillForm({ locale, unit, timeZone, entry, close }: {
       remove={entry ? deleteTreadmill.bind(null, locale, entry.id) : undefined}>
       <label>
         {t('distanceInput', { unit })}
-        <input name="distance" type="number" inputMode="decimal" min="0.0001" step="any" required
-          defaultValue={entry ? Number(displayDistance(entry.distance_km, unit).toFixed(5)) : undefined} />
+        <input name="distance" type="text" inputMode="decimal" maxLength={16} required
+          defaultValue={entry ? format.number(displayDistance(entry.distance_km, unit), { useGrouping: false, maximumFractionDigits: 5 }) : undefined} />
       </label>
       <fieldset className="record-duration">
         <legend>{t('runDuration')}</legend>

@@ -54,6 +54,17 @@ export function LiveGym({ locale, exercises, runs, timeZone, weightUnit, distanc
   return <>
     <PageHeading title={nav('gym')} visuallyHidden />
     <div className="gym-overview">
+      <section className="panel section-panel treadmill">
+        <div className="panel-heading">
+          <h2><Footprints size={20} aria-hidden />{gym('treadmill')}</h2>
+          <AddRecordButton onClick={() => setModal('run')}>{t('newRun')}</AddRecordButton>
+        </div>
+        {recent ? <dl className="gym-stats">
+          <div><dt>{t('recentSpeed', { count: recent.count })}</dt><dd>{speed(recent.speed)}</dd></div>
+          <div><dt>{t('runChange')}</dt><dd>{recent.change === null ? '—' : speed(recent.change, 'exceptZero')}</dd></div>
+        </dl> : <p className="empty-state">{t('noRuns')}</p>}
+        <Link className="text-link" prefetch={false} href={localePath(locale, '/gym/cinta')}>{t('viewRuns')}</Link>
+      </section>
       <section className="panel section-panel gym-exercises">
         <div className="panel-heading">
           <h2><Dumbbell size={20} aria-hidden />{t('exercises')}</h2>
@@ -72,17 +83,6 @@ export function LiveGym({ locale, exercises, runs, timeZone, weightUnit, distanc
             </Link>
           </li>)}
         </ul> : <p className="empty-state">{t('noExercises')}</p>}
-      </section>
-      <section className="panel section-panel treadmill">
-        <div className="panel-heading">
-          <h2><Footprints size={20} aria-hidden />{gym('treadmill')}</h2>
-          <AddRecordButton onClick={() => setModal('run')}>{t('newRun')}</AddRecordButton>
-        </div>
-        {recent ? <dl className="gym-stats">
-          <div><dt>{t('recentSpeed', { count: recent.count })}</dt><dd>{speed(recent.speed)}</dd></div>
-          <div><dt>{t('runChange')}</dt><dd>{recent.change === null ? '—' : speed(recent.change, 'exceptZero')}</dd></div>
-        </dl> : <p className="empty-state">{t('noRuns')}</p>}
-        <Link className="text-link" prefetch={false} href={localePath(locale, '/gym/cinta')}>{t('viewRuns')}</Link>
       </section>
     </div>
     {modal === 'exercise' && <ExerciseForm locale={locale} close={close} />}

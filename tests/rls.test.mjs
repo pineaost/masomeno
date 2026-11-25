@@ -6,6 +6,7 @@ import { catalogChoices } from '../src/lib/catalog-search.ts';
 import { isFoodUnit, portionInGrams } from '../src/lib/food.ts';
 import { ingredientNameKey, readRecipeView, recipeAvailability, recipeEntries, recipeEntryDraft, recipeEntryScore } from '../src/lib/recipe-catalog.ts';
 import { preparationNutrition, recipeCaloriesPerServing, resolveRecipeDraft } from '../src/lib/recipe-composition.ts';
+import { parseStrength, parseTreadmill } from '../src/lib/tracking-fields.ts';
 
 const alice = '00000000-0000-4000-a000-000000000001';
 const bob = '00000000-0000-4000-a000-000000000002';
@@ -161,8 +162,21 @@ test('peso, fuerza y cinta aíslan propietarios y aplican límites durante las o
   const lift = (await insertLift(favorite.id, 0)).rows[0];
   assert.ok([weighIn, run, favorite, lift].every(({ user_id }) => user_id === alice));
   assert.equal((await db.query("update public.weight_measurements set condition = 'En ayunas' where id = $1", [weighIn.id])).affectedRows, 1);
-  assert.equal((await db.query('update public.strength_entries set load_kg = 30 where id = $1', [lift.id])).affectedRows, 1);
-  assert.equal((await db.query('update public.treadmill_sessions set duration_seconds = 1600 where id = $1', [run.id])).affectedRows, 1);
+  const strength = new FormData();
+  strength.set('performed_on', '2020-01-01');
+  strength.set('load', '12,5');
+  const treadmill = new FormData();
+  treadmill.set('performed_on', '2020-01-01');
+  treadmill.set('distance', '1,13');
+  treadmill.set('minutes', '26');
+  treadmill.set('seconds', '40');
+  const trainingDate = new Date('2026-11-25T12:00:00Z');
+  const strengthValue = parseStrength(strength, 'kg', 'UTC', trainingDate);
+  const runValue = parseTreadmill(treadmill, 'km', 'UTC', trainingDate);
+  assert.deepEqual((await db.query('update public.strength_entries set load_kg = $2 where id = $1 returning load_kg::float as kg',
+    [lift.id, strengthValue.load_kg])).rows, [{ kg: 12.5 }]);
+  assert.deepEqual((await db.query('update public.treadmill_sessions set duration_seconds = $2, distance_km = $3 where id = $1 returning distance_km::float as km',
+    [run.id, runValue.duration_seconds, runValue.distance_km])).rows, [{ km: 1.13 }]);
   await assert.rejects(db.query('update public.weight_measurements set weight_kg = 0'), { code: '23514' });
   await assert.rejects(db.query('update public.strength_entries set load_kg = -1'), { code: '23514' });
   await assert.rejects(db.query('update public.treadmill_sessions set duration_seconds = 0'), { code: '23514' });
@@ -1046,6 +1060,32 @@ test('el recetario ampliado publica platos, partes y variantes completas con reg
   assert.equal((await snapshot(newMeal))[0].kcal, 401.4);
   assert.equal((await snapshot(newMeal))[1].ingredients[0].grams, 100);
   assert.deepEqual(await snapshot(oldMeal), oldSnapshot);
+
+  const salad = recipeIndex.get(id(4));
+  const base = recipeEntryDraft(salad, recipeEntries(salad)[0]);
+  await rows("select public.masomeno_set_fridge_ingredient('tuna','unavailable')");
+  const baseLines = resolveRecipeDraft(salad, base, refs);
+  assert.ok(baseLines.some(({ referenceId }) => referenceId === 'tuna-prepared'));
+  assert.ok(!baseLines.some(({ referenceId }) => referenceId === 'egg-cooked'));
+  const customized = resolveRecipeDraft(salad, { ...base, choices: { 1: 1, 5: 'omit' },
+    additions: [{ referenceId: 'green-peas-cooked', amount: '0,5', unit: 'cup' }] }, refs);
+  assert.ok(customized.some(({ referenceId }) => referenceId === 'brown-rice-cooked'));
+  assert.ok(!customized.some(({ referenceId }) => referenceId === 'carrot-raw'));
+  const mealId = await save([{ name: salad.names.es, servings: 1, ingredients: customized }]);
+  const initial = await snapshot(mealId);
+  assert.equal(initial.length, 1);
+  const peas = initial[0].ingredients.find(({ referenceId }) => referenceId === 'green-peas-cooked');
+  assert.ok(peas.grams > 0);
+  assert.equal(initial[0].kcal, preparationNutrition(customized, refs).kcal);
+  await db.exec('reset role');
+  await rows("update public.food_references set kcal_per_100g = 200 where id = 'green-peas-cooked'");
+  await as(alice);
+  await rows("select public.masomeno_resize_preparations($1,'lunch','2020-11-25T15:00Z',null,$2,$3)",
+    [mealId, JSON.stringify(initial), JSON.stringify([2])]);
+  const resizedPeas = (await snapshot(mealId))[0].ingredients.find(({ referenceId }) => referenceId === peas.referenceId);
+  assert.equal(resizedPeas.grams, 2 * peas.grams);
+  assert.deepEqual(resizedPeas.per100g, peas.per100g);
+  assert.deepEqual(await legacyIngredients(), oldIngredients);
   await as(bob);
   assert.deepEqual(await rows('select id from public.meals where id = $1', [newMeal]), []);
 });

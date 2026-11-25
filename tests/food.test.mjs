@@ -6,7 +6,7 @@ import {
 } from '../src/lib/food.ts';
 import { readTimeZone } from '../src/lib/time-zones.ts';
 import { foodDraftNutrition, foodPreparation, parseMealItems } from '../src/lib/meal-composition.ts';
-import { resolveRecipeDraft } from '../src/lib/recipe-composition.ts';
+import { preparationNutrition, resolveRecipeDraft } from '../src/lib/recipe-composition.ts';
 
 const zone = 'America/Argentina/Buenos_Aires';
 const now = new Date('2026-11-24T12:00:00Z');
@@ -99,6 +99,40 @@ test('las fracciones de galletitas dependen del peso neto del paquete', () => {
   assert.equal(packageFractionGrams('170', 0.5), 85);
   assert.equal(packageFractionGrams('86.02', 0.25), 21.51);
   assert.equal(packageFractionGrams('10001', 0.5), null);
+});
+
+test('personaliza una sola receta con exclusiones, sustituciones y unidades de Biblioteca', () => {
+  const recipeId = '94170000-0000-4000-8000-000000000004';
+  const refs = new Map([
+    ['tuna', { validation: 'verified', kcal_per_100g: 116 }],
+    ['rice', { validation: 'verified', kcal_per_100g: 130, portion_unit: 'cup', portion_grams: 158 }],
+    ['brown-rice', { validation: 'verified', kcal_per_100g: 123, portion_unit: 'cup', portion_grams: 202 }],
+    ['peas', { validation: 'verified', kcal_per_100g: 84, portion_unit: 'cup', portion_grams: 160 }],
+    ['oil', { validation: 'verified', kcal_per_100g: 884 }],
+    ['sushi-maki', { validation: 'pending', kcal_per_100g: null }],
+  ].map(([id, ref]) => [id, { ...ref, protein_per_100g: null, carbs_per_100g: null, fat_per_100g: null }]));
+  const recipe = { id: recipeId, base_servings: 1, alternatives: [{ ingredient_position: 2, position: 1, food_reference_id: 'brown-rice', grams: 100 }],
+    ingredients: [
+      { position: 1, food_reference_id: 'tuna', grams: 75 },
+      { position: 2, food_reference_id: 'rice', grams: 100 },
+      { position: 3, food_reference_id: 'oil', grams: 10, is_optional: true, optional_default: false },
+    ] };
+  const base = { recipeId, servings: 1, choices: {}, quantities: {} };
+  const draft = { ...base, choices: { 1: 'omit', 2: 1 }, measures: { 2: { amount: '0,5', unit: 'cup' } },
+    additions: [{ referenceId: 'peas', amount: '0,5', unit: 'cup' }] };
+  const item = { type: 'recipe', recipe: draft };
+  const lines = resolveRecipeDraft(recipe, draft, refs);
+  assert.deepEqual(parseMealItems(JSON.stringify([item])), [item]);
+  assert.deepEqual(lines, [{ referenceId: 'brown-rice', grams: 101 }, { referenceId: 'peas', grams: 80 }]);
+  assert.equal(preparationNutrition(lines, refs).kcal, 191.43);
+  assert.deepEqual(resolveRecipeDraft(recipe, base, refs), [{ referenceId: 'tuna', grams: 75 }, { referenceId: 'rice', grams: 100 }]);
+  assert.equal(resolveRecipeDraft(recipe, { ...draft, choices: { 1: 'omit', 2: 'omit' }, measures: {}, additions: [] }, refs), null);
+  for (const addition of [{ referenceId: 'sushi-maki', amount: '1', unit: 'g' }, { referenceId: 'peas', amount: '1', unit: 'egg' }]) {
+    assert.equal(resolveRecipeDraft(recipe, { ...draft, additions: [addition] }, refs), null);
+  }
+  assert.equal(parseMealItems(JSON.stringify([{ ...item, recipe: { ...draft, additions: [
+    { referenceId: 'peas', amount: '1,', unit: 'cup' },
+  ] } }])), null);
 });
 
 test('calcula el día local y sus límites aunque cambie el horario de verano', () => {

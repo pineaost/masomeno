@@ -20,8 +20,8 @@ import { mealLabel } from '@/lib/meal-label';
 import { recordedPreparationLines, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
 import { DiaryCalendar } from './diary-calendar';
 import { deleteMeal, saveMeal } from './food-actions';
-import { CatalogPicker, HouseholdAmount, MealItems, mealItemValues, type ItemEdit } from './meal-items';
-import { QuickAmounts } from './recipe-composer';
+import { CatalogPicker, HouseholdAmount, QuickAmounts } from './food-picker';
+import { MealItems, mealItemValues, type ItemEdit } from './meal-items';
 
 type Draft = { key: number; food: CatalogFood; amount: string; unit: FoodUnit; original?: MealComponent };
 type Mode = 'new' | 'edit' | 'remove';
@@ -91,11 +91,15 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   const refs = new Map(catalog.map((ref) => [ref.id, ref]));
   const values = items.map((item) => mealItemValues(item, refs, recipes));
   const count = values.reduce((sum, item) => sum + (item?.count ?? 0), 0);
+  const editingValue = itemEdit && mealItemValues(itemEdit.draft, refs, recipes);
+  const previewValues = itemEdit?.index === null ? [...values, editingValue]
+    : values.map((item, index) => index === itemEdit?.index ? editingValue : item);
   const portions = recordedServings.map((servings, index) => foodAmount(servings, snapshots?.[index]?.measureUnit ? 10000 : 1000));
   const archived = snapshots && portions.every((value): value is number => value !== null)
     ? recordedPreparationLines(snapshots, portions) : null;
-  const visibleValues = composing ? values : legacy ? legacyValues : archived ?? [];
-  const total = visibleValues.length ? totalCalories(visibleValues.flatMap((item) => item ? [item.kcal] : [])) : null;
+  const visibleValues = composing ? previewValues : legacy ? legacyValues : archived ?? [];
+  const total = visibleValues.length && visibleValues.every(Boolean)
+    ? totalCalories(visibleValues.flatMap((item) => item ? [item.kcal] : [])) : null;
   const canSave = kind === 'manual' || (legacy && legacyValues.length > 0 && legacyValues.every(Boolean) && !incompleteEdit && activeLine === null) ||
     (composing && !itemEdit && count > 0 && count <= maxMealLines && values.every(Boolean)) ||
     (kind === 'snapshot' && !!archived && activeLine === null);
@@ -181,7 +185,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   </div>;
 
   return <RecordDialog title={mode === 'remove' ? app('remove') : editing ? meals('editMeal') : home('logMeal')}
-    close={close} canSave={canSave}
+    close={close} canSave={canSave} fitViewport
     footer={total === null ? undefined : <p className="food-total meal-total-bar" aria-live="polite">{t('mealTotal', { kcal: number(total) })}</p>}
     save={saveMeal.bind(null, locale, editing ? meal?.id ?? null : null, zone, snapshots)}
     remove={editing && meal ? deleteMeal.bind(null, locale, meal.id) : undefined}
@@ -214,7 +218,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
       {snapshots.map((group, index) => {
         const portion = portions[index];
         const removed = portion === 0;
-        const preview = portion && recordedPreparationLines([group], [portion]);
+        const preview = portion ? recordedPreparationLines([group], [portion]) : null;
         return <li key={index}>
           <input type="hidden" name="recordedServings" value={recordedServings[index]} />
           <div className="meal-item-row">
@@ -235,20 +239,22 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
               </button>}
             </div>
           </div>
+          {preview && (!group.measureUnit || activeLine === index) && <details className="recipe-options recorded-ingredients">
+            <summary>{recipeText('ingredients')}</summary>
+            <ul className="recipe-preview">{group.ingredients.map((ingredient, position) => <li key={position}>
+              {localizedText(ingredient.names, locale) ?? t('food')}
+              {ingredient.variantNames && <> · {localizedText(ingredient.variantNames, locale)}</>} · ≈ {number(preview[position].grams)} g
+            </li>)}</ul>
+          </details>}
           {activeLine === index && <div className="meal-item-editor">
             <div className="meal-quantity-controls">
               <label>{group.measureUnit ? t(group.measureUnit === 'g' ? 'amountGrams' : group.measureUnit) : t('servingCount')}
-                <input type="number" min=".01" max={group.measureUnit ? '10000' : '1000'} step=".01" inputMode="decimal"
+                <input type="text" inputMode="decimal" maxLength={10}
                   value={recordedServings[index]} onChange={(event) => changeArchived(index, event.target.value)} />
               </label>
               <QuickAmounts values={group.measureUnit ? quickFoodAmounts(group.measureUnit) : [0.5, 1, 1.5, 2]}
                 selected={portion ?? 0} onChange={(value) => changeArchived(index, String(value))} />
             </div>
-            {preview && <details className="recipe-options"><summary>{recipeText('ingredients')}</summary>
-              <ul className="recipe-preview">{group.ingredients.map((ingredient, position) => <li key={position}>
-                {localizedText(ingredient.names, locale) ?? t('food')} · ≈ {number(preview[position].grams)} g
-              </li>)}</ul>
-            </details>}
             <button type="button" className="button primary compact-confirm" disabled={!preview}
               onClick={() => setActiveLine(null)}><Check size={16} aria-hidden />{t('confirmItem')}</button>
           </div>}
@@ -261,7 +267,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
         <input name="name" required maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />
       </label>
       <label>{meals('kcal')}
-        <input name="kcal" type="number" min="0" step=".01" max="100000" inputMode="decimal" required
+        <input name="kcal" type="text" inputMode="decimal" maxLength={10} required
           value={kcal} onChange={(event) => setKcal(event.target.value)} />
       </label>
     </>}

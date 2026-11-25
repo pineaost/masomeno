@@ -28,6 +28,23 @@ test('los formularios editan en lb y mi sin alterar la precisión canónica', ()
   });
 });
 
+test('fuerza, cinta y peso admiten coma y punto sin perder precisión', () => {
+  const performed_on = '2026-11-24';
+  for (const [load, expected] of [['12,5', 12.5], ['12.5', 12.5], ['12', 12], ['0', 0]]) {
+    assert.equal(parseStrength(form({ load, performed_on }), 'kg', zone, now)?.load_kg, expected);
+  }
+  for (const [distance, expected] of [['1,13', 1.13], ['1.13', 1.13], ['1', 1], [',5', .5]]) {
+    assert.equal(parseTreadmill(form({ distance, minutes: '12', seconds: '0', performed_on }), 'km', zone, now)?.distance_km, expected);
+  }
+  for (const value of ['12,', '12.', '1,13.4', '1.13,4', '1e2', '-1', '12,123456']) {
+    assert.equal(parseStrength(form({ load: value, performed_on }), 'kg', zone, now), null, value);
+    assert.equal(parseTreadmill(form({ distance: value, minutes: '12', seconds: '0', performed_on }), 'km', zone, now), null, value);
+  }
+  assert.deepEqual(parseWeightGoal(form({ weight: '78,125' }), 'kg'), { weight_goal_kg: 78.125 });
+  assert.equal(parseTreadmill(form({ distance: displayDistance(1.13, 'mi').toFixed(5).replace('.', ','), minutes: '12',
+    seconds: '0', performed_on }), 'mi', zone, now)?.distance_km, 1.13);
+});
+
 test('un pesaje usa la zona del perfil y valida el calendario y los saltos de hora', () => {
   assert.equal(localFormDateTime(now.toISOString(), zone), '2026-11-24T09:30');
   assert.equal(measuredInstant('2026-11-24T09:31', zone, now), null);

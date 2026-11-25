@@ -1,4 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
+import { parseDecimal } from './decimal.ts';
 import type { Locale } from '../i18n/config.ts';
 import { isCalendarDay, localFormDateTime } from './dates.ts';
 import { isTrackingId, measuredInstant } from './tracking-fields.ts';
@@ -13,6 +14,8 @@ const portionUnits = [
 ] as const;
 export type Portion = (typeof portionUnits)[number];
 export type FoodUnit = 'g' | Portion;
+export type FoodQuantity = { amount: string; unit: FoodUnit };
+export type FoodSelection = FoodQuantity & { referenceId: string };
 export type FoodReference = {
   id: string;
   preparation: 'raw' | 'cooked' | 'prepared';
@@ -169,9 +172,21 @@ function text(fields: FormData, field: string) {
 }
 
 export function foodAmount(value: string | null, max = 10000) {
-  if (value === null || !/^\d{1,6}(?:\.\d{1,2})?$/.test(value)) return null;
-  const amount = Number(value);
-  return amount <= max ? amount : null;
+  const amount = parseDecimal(value, 2);
+  return amount !== null && amount <= max ? amount : null;
+}
+
+export function validFoodQuantity(value: unknown): value is FoodQuantity {
+  if (typeof value !== 'object' || value === null) return false;
+  const { amount, unit } = value as Partial<FoodQuantity>;
+  return typeof amount === 'string' && Boolean(foodAmount(amount)) && isFoodUnit(unit);
+}
+
+export function foodQuantityGrams(quantity: FoodQuantity, reference: FoodReference) {
+  const amount = foodAmount(quantity.amount);
+  if (!amount || !usableFood(reference)) return null;
+  const grams = portionInGrams(amount, quantity.unit, reference);
+  return grams === null ? null : portionCalories(grams, 100) || null;
 }
 
 export function packageFractionGrams(netWeight: string, fraction: 0.25 | 0.5) {

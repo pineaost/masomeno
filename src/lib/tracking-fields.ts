@@ -1,4 +1,5 @@
 import { Temporal } from '@js-temporal/polyfill';
+import { parseDecimal } from './decimal.ts';
 import { isCalendarDay, localFormDateTime } from './dates.ts';
 import { distanceInKm, weightInKg, type DistanceUnit, type WeightUnit } from './units.ts';
 
@@ -11,16 +12,12 @@ function readText(fields: FormData, key: string) {
   return typeof value === 'string' ? value.trim() : null;
 }
 
-function decimal(value: string | null) {
-  return value !== null && /^\d+(?:\.\d{1,5})?$/.test(value) ? Number(value) : NaN;
-}
-
 function round(value: number, digits: number) {
   return Number(value.toFixed(digits));
 }
 
 function weightValue(value: string | null, unit: WeightUnit, min: number, max: number) {
-  const kg = round(weightInKg(decimal(value), unit), 3);
+  const kg = round(weightInKg(parseDecimal(value) ?? NaN, unit), 3);
   return Number.isFinite(kg) && kg >= min && kg <= max ? kg : null;
 }
 
@@ -75,7 +72,7 @@ export function parseStrength(fields: FormData, unit: WeightUnit, timeZone: stri
 }
 
 export function parseTreadmill(fields: FormData, unit: DistanceUnit, timeZone: string, now: Date) {
-  const distance_km = round(distanceInKm(decimal(readText(fields, 'distance')), unit), 4);
+  const distance_km = round(distanceInKm(parseDecimal(readText(fields, 'distance')) ?? NaN, unit), 4);
   const minuteText = readText(fields, 'minutes');
   const secondText = readText(fields, 'seconds');
   const performed_on = performedDay(fields, timeZone, now);

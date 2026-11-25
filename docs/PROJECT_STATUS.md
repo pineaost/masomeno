@@ -1,6 +1,6 @@
 # Estado de MASOMENO
 
-**Etapa B implementada en local con 32 platos, 33 preparaciones reutilizables y 10 desayunos o meriendas.**
+**Disposición de escritorio y registro personalizado de comidas corregidos en local.**
 
 ## Estado funcional
 
@@ -8,14 +8,14 @@
 - Las tarjetas de Hoy comparten un máximo de 900 px en escritorio. Biblioteca agrupa variantes y prioriza coincidencias por nombre o sinónimo. Mi heladera conserva cada alimento seleccionable. El peso neto de las galletitas permite convertir ¼ o ½ paquete a gramos. [Catálogo y fuentes](NUTRITION_CATALOG.md#ampliación-de-alimentos-cotidianos)
 
 - La versión anterior está publicada en Vercel y el usuario confirmó el acceso con Google. Perfil, preferencias, peso, Gym y Cinta ya usan Supabase.
-- La navegación usa el orden Hoy, Evolución, Comidas y Gym en escritorio y móvil. El nombre queda en Configuración → Perfil, junto a los datos de la cuenta.
+- La navegación usa el orden Hoy, Evolución, Comidas y Gym. Desde los 840 px, el sidebar incluye Configuración y Cerrar sesión. En anchos menores, la navegación es inferior, Configuración está en el encabezado y Cerrar sesión al final de Configuración.
 - El idioma se guarda en la cuenta y el cambio mantiene el borrador del Perfil. Configuración usa un selector IANA con hora local, acceso directo en móvil y Cerrar sesión al final de la pantalla móvil.
 - Hoy renueva el consumo a medianoche local y muestra un resumen compacto de las comidas del día. Comidas tiene un calendario con navegación por teclado y muestra el objetivo vigente de la fecha elegida.
-- Gym usa una sola lista de ejercicios, encabezada por los destacados, con la última carga y repeticiones cuando existen. Ejercicios y Cinta usan dos columnas en escritorio y una en móvil.
+- Gym conserva una sola lista de ejercicios, con destacados, cargas y repeticiones. Desde los 840 px muestra Ejercicios a la izquierda y Cinta a la derecha. En anchos menores muestra Cinta primero. Los campos decimales de registro aceptan coma y punto, y las cargas y distancias se guardan como números.
 - El registro ofrece medidas caseras, recetas publicadas con composición calculable, comidas recientes y carga libre. El cabutiá crudo y hervido tiene fuente directa y el horneado usa una referencia comparable indicada como estimación. [Fuentes](NUTRITION_CATALOG.md)
 - Mi heladera muestra todos los ingredientes que coinciden con los filtros. Conserva los estados y los ingredientes personales por cuenta.
 - El Recetario ofrece búsqueda, filtros de tipo e intensidad, y fichas de preparaciones y variantes en ES, EN e IT. Prioriza las que se pueden hacer según Mi heladera y mantiene visibles las demás. El catálogo tiene 222 alimentos y 306 referencias. [Etapa B](RECIPE_CANDIDATES.md#etapa-b) · [Fuentes y modelo](NUTRITION_CATALOG.md#preparaciones-y-comidas-compradas)
-- El modal combina Biblioteca, recetas y partes reutilizables en filas confirmables, con cantidades domésticas, etiquetas opcionales y total estimado. La edición histórica usa las medidas y los valores guardados.
+- El modal de comidas mantiene la geometría al filtrar resultados y ajusta la altura al área visible. El botón Agregar otro elemento tiene mayor contraste. Personalizar ingredientes permite quitar, sustituir, ajustar y sumar alimentos de Biblioteca dentro de la misma preparación. Las calorías se recalculan mientras se edita. Cada receta arranca con su composición base, independiente de Mi heladera. El historial conserva el detalle y escala los ingredientes guardados al editar porciones. El guardado reutiliza las funciones existentes de Supabase.
 - Evolución conserva tres pesajes visibles y abre el historial completo con edición y eliminación confirmada. La tendencia usa una media de siete días locales y el eje agrega 5 kg por extremo. Cinta y fuerza usan márgenes relativos.
 - El login muestra «¿Comiste bien? ¿Entrenaste?» sobre la carita y Masomeno, con traducciones en inglés e italiano. El botón de acceso muestra la G oficial de Google. [Recurso de Google Identity](https://developers.google.com/identity/branding-guidelines)
 
@@ -25,6 +25,7 @@
 
 ## Verificado
 
+- Escritorio y registro de comidas. Pasaron TypeScript, ESLint, 55 pruebas y el build. Chrome de escritorio y emulación de iPhone 13 mini en ES, EN e IT verificaron la navegación, el cambio de disposición entre 839 y 840 px, el guardado de decimales, el modal y la edición de ingredientes. El recorrido usó PostgreSQL local con el acceso y el transporte de Supabase simulados.
 - Etapa B. Pasaron TypeScript, ESLint, 51 pruebas y el build. PostgreSQL local verificó la reaplicación de las semillas, las recetas publicadas, las porciones, las sustituciones y los consumos históricos. En Chrome de escritorio y emulación de iPhone 13 mini se recorrieron la búsqueda, los filtros, la ficha de una parte, el registro combinado, Hoy, Comidas y la prioridad de Mi heladera en ES, EN e IT con Supabase simulado.
 - Etapa A. Pasaron TypeScript, ESLint, 50 pruebas y el build. PostgreSQL local verificó las migraciones idempotentes, las referencias, los identificadores previos, el historial y el aislamiento entre cuentas. En Chrome de escritorio y con emulación de iPhone 13 mini se verificaron variantes, medidas, registro combinado, Recetario y persistencia de Mi heladera en ES, EN e IT con Supabase simulado.
 - TypeScript, ESLint, 49 pruebas y el build pasaron. En Chrome de escritorio y con emulación de iPhone 13 mini, en ES, EN e IT, se comprobaron el selector IANA, la persistencia, Cerrar sesión, la alineación de Hoy y el registro por unidad, porción y fracción de paquete. El recorrido usó PostgreSQL local y Supabase simulado.

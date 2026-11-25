@@ -10,6 +10,7 @@ import { isLocale, localePath, type Locale } from '@/i18n/config';
 import { createLocaleHandoff } from '@/i18n/locale-handoff';
 import { useLocalizedValidation } from '@/i18n/form-validation';
 import type { FormStatus } from '@/lib/account-fields';
+import { parseDecimal } from '@/lib/decimal';
 import type { Preferences, Profile } from '@/lib/supabase/database';
 import { heightInCentimeters, heightInFeetAndInches } from '@/lib/units';
 import { PreferenceFields } from './preference-fields';
@@ -43,19 +44,23 @@ function ProfileHeight({ centimeters, imperial, onChange }: {
 }) {
   const t = useTranslations('settings');
   const [parts, setParts] = useState(() => {
-    if (!centimeters) return { feet: '', inches: '' };
-    const { feet, inches } = heightInFeetAndInches(Number(centimeters), 2);
+    const height = parseDecimal(centimeters, 2);
+    if (!height) return { feet: '', inches: '' };
+    const { feet, inches } = heightInFeetAndInches(height, 2);
     return { feet: String(feet), inches: String(inches) };
   });
 
   function update(next: typeof parts) {
     setParts(next);
-    onChange(next.feet || next.inches ? heightInCentimeters(Number(next.feet), Number(next.inches)).toFixed(2) : '');
+    const feet = parseDecimal(next.feet || '0', 0);
+    const inches = parseDecimal(next.inches || '0', 2);
+    const metric = heightInCentimeters(feet ?? NaN, inches !== null && inches < 12 ? inches : NaN);
+    onChange(next.feet || next.inches ? metric.toFixed(2) : '');
   }
 
   if (!imperial) return <label>
     {t('heightCm')}
-    <input name="height_cm" type="number" inputMode="decimal" min="0.01" max="300" step="0.01"
+    <input name="height_cm" type="text" inputMode="decimal" maxLength={8}
       value={centimeters} onChange={(event) => onChange(event.target.value)} />
   </label>;
 
@@ -66,7 +71,7 @@ function ProfileHeight({ centimeters, imperial, onChange }: {
         value={parts.feet} onChange={(event) => update({ ...parts, feet: event.target.value })} />
     </label>
     <label>{t('heightIn')}
-      <input type="number" inputMode="decimal" min="0" max="11.99" step="0.01"
+      <input type="text" inputMode="decimal" maxLength={6}
         value={parts.inches} onChange={(event) => update({ ...parts, inches: event.target.value })} />
     </label>
   </div>;
