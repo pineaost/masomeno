@@ -1,11 +1,15 @@
 'use client';
 
-import { Flame, Plus } from 'lucide-react';
+import { Flame, Pencil, Plus } from 'lucide-react';
 import Link from 'next/link';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
+import { useState } from 'react';
+import { RecordDialog } from '@/components/tracking-ui';
 import { localePath } from '@/i18n/config';
+import { readLocale } from '@/lib/auth-paths';
 import { summarizeCalories } from '@/lib/calories';
 import type { FoodAvailability } from '@/lib/food';
+import { setCalorieGoal } from './food-actions';
 
 export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: {
   consumed: number; goal: number | null; state?: FoodAvailability | 'loading'; live?: boolean;
@@ -14,7 +18,8 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: 
   const food = useTranslations('nutrition');
   const home = useTranslations('home');
   const format = useFormatter();
-  const locale = useLocale();
+  const locale = readLocale(useLocale());
+  const [editingGoal, setEditingGoal] = useState(false);
   const ready = state === 'ready';
   const summary = ready && goal !== null ? summarizeCalories(consumed, goal) : null;
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
@@ -29,7 +34,13 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: 
         </div>
         <div className="calories-total">
           <strong>{ready ? number(consumed) : '—'}</strong>
-          <span>{ready && goal !== null ? `/ ${number(goal)} kcal` : 'kcal'}</span>
+          {(!ready || goal === null || !live) && <span>{ready && goal !== null ? `/ ${number(goal)} kcal` : 'kcal'}</span>}
+          {live && ready && <button type="button" className="calories-goal" onClick={() => setEditingGoal(true)}
+            aria-label={goal === null ? food('setGoal') : `${food('editGoal')} · ${number(goal)} kcal`}
+            title={goal === null ? undefined : food('editGoal')}>
+            {goal === null ? food('setGoal') : `/ ${number(goal)} kcal`}
+            <Pencil size={15} aria-hidden />
+          </button>}
         </div>
         {summary && goal !== null ? (
           <>
@@ -47,7 +58,7 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: 
         ) : (
           <>
             <div className="calories-track" aria-hidden />
-            <p className="calories-footer" role={ready ? undefined : 'status'}>{food(ready ? 'noGoal' : state)}</p>
+            {!ready && <p className="calories-footer" role="status">{food(state)}</p>}
           </>
         )}
         {live && <div className="calories-actions">
@@ -55,12 +66,14 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: 
             <Plus size={18} aria-hidden />{home('logMeal')}
           </Link>}
           <Link className="button secondary" href={diary} prefetch={false}>{home('seeMeals')}</Link>
-          {ready && goal === null && <Link className="text-link" prefetch={false}
-            href={`${localePath(locale, '/configuracion')}?volver=${encodeURIComponent(localePath(locale))}#objetivo-calorico`}>
-            {food('setGoal')}
-          </Link>}
         </div>}
       </div>
+      {editingGoal && <RecordDialog title={food('goal')} save={setCalorieGoal.bind(null, locale)} close={() => setEditingGoal(false)}>
+        <label>{food('goalInput')}
+          <input type="number" name="kcal" inputMode="numeric" min="1" max="10000" step="1" defaultValue={goal ?? ''} />
+        </label>
+        <p className="section-copy">{food('goalHint')}</p>
+      </RecordDialog>}
     </section>
   );
 }

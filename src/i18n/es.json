@@ -185,11 +185,16 @@
     "egg": "Huevo grande",
     "banana": "Banana mediana",
     "tablespoon": "Cucharada",
+    "slice": "Porción / rebanada",
+    "unit": "Unidad",
+    "piece": "Pieza",
+    "estimate": "Estimación",
     "lineEstimate": "{grams} g · {kcal} kcal",
     "mealTotal": "Total estimado: {kcal} kcal",
     "source": "Fuente"
   },
   "recipes": {
+    "optional": "Opcional",
     "filters": "Intensidad de las recetas",
     "all": "Todas",
     "light": "Liviana",
@@ -210,6 +215,20 @@
     "unavailable": "No pudimos cargar el recetario. Volvé a intentarlo."
   },
   "fridge": {
+    "category": "Categoría",
+    "allCategories": "Todas las categorías",
+    "personal": "Personales",
+    "availableTitle": "Tengo",
+    "clearAvailable": "Quitar {food} de Tengo",
+    "editIngredient": "Editar {food}",
+    "searchTip": "Buscá por nombre o elegí una categoría.",
+    "more": "Ver más",
+    "addIngredient": "Agregar ingrediente",
+    "editTitle": "Editar ingrediente",
+    "ingredientName": "Nombre del ingrediente",
+    "removeIngredient": "¿Eliminar este ingrediente personal?",
+    "duplicate": "Ya existe un ingrediente con ese nombre.",
+    "personalPending": "Para guardar ingredientes personales, aplicá la migración de Mi heladera.",
     "hint": "Tocá de nuevo una opción para dejarla sin marcar.",
     "search": "Buscar ingredientes",
     "available": "Tengo",
@@ -247,6 +266,8 @@
     "condition": "Condición de pesaje (opcional)"
   },
   "training": {
+    "repetitionsInput": "Repeticiones (opcional)",
+    "repetitions": "{count, plural, one {# repetición} other {# repeticiones}}",
     "newExercise": "Nuevo ejercicio",
     "editExercise": "Editar ejercicio",
     "removeExercise": "¿Eliminar este ejercicio y todas sus marcas?",

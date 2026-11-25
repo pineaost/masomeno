@@ -185,11 +185,16 @@
     "egg": "Uovo grande",
     "banana": "Banana media",
     "tablespoon": "Cucchiaio",
+    "slice": "Fetta",
+    "unit": "Unità",
+    "piece": "Pezzo",
+    "estimate": "Stima",
     "lineEstimate": "{grams} g · {kcal} kcal",
     "mealTotal": "Totale stimato: {kcal} kcal",
     "source": "Fonte"
   },
   "recipes": {
+    "optional": "Facoltativo",
     "filters": "Intensità delle ricette",
     "all": "Tutte",
     "light": "Leggera",
@@ -210,6 +215,20 @@
     "unavailable": "Impossibile caricare il ricettario. Riprova."
   },
   "fridge": {
+    "category": "Categoria",
+    "allCategories": "Tutte le categorie",
+    "personal": "Personali",
+    "availableTitle": "Disponibili",
+    "clearAvailable": "Deseleziona {food}",
+    "editIngredient": "Modifica {food}",
+    "searchTip": "Cerca per nome o scegli una categoria.",
+    "more": "Mostra altri",
+    "addIngredient": "Aggiungi ingrediente",
+    "editTitle": "Modifica ingrediente",
+    "ingredientName": "Nome dell’ingrediente",
+    "removeIngredient": "Eliminare questo ingrediente personale?",
+    "duplicate": "Esiste già un ingrediente con questo nome.",
+    "personalPending": "Applica la migrazione del mio frigo per salvare gli ingredienti personali.",
     "hint": "Tocca di nuovo un’opzione selezionata per deselezionarla.",
     "search": "Cerca ingredienti",
     "available": "Ce l’ho",
@@ -247,6 +266,8 @@
     "condition": "Condizioni della pesata (facoltativo)"
   },
   "training": {
+    "repetitionsInput": "Ripetizioni (facoltative)",
+    "repetitions": "{count, plural, one {# ripetizione} other {# ripetizioni}}",
     "newExercise": "Nuovo esercizio",
     "editExercise": "Modifica esercizio",
     "removeExercise": "Eliminare questo esercizio e tutte le sue registrazioni?",

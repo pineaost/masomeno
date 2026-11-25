@@ -13,8 +13,8 @@ import { signOut } from '@/app/[locale]/(private)/configuracion/actions';
 
 const navigation = [
   { label: 'home', path: '', icon: House },
-  { label: 'meals', path: '/comidas', icon: Utensils },
   { label: 'progress', path: '/evolucion', icon: TrendingUp },
+  { label: 'meals', path: '/comidas', icon: Utensils },
   { label: 'gym', path: '/gym', icon: Dumbbell },
 ] as const;
 
@@ -26,15 +26,14 @@ function SignOutButton() {
   </button>;
 }
 
-function AccountLinks({ demo, locale, pathname, displayName, onNavigate }: {
-  demo: boolean; locale: Locale; pathname: string; displayName: string | null; onNavigate?: () => void;
+function AccountLinks({ demo, locale, pathname, onNavigate }: {
+  demo: boolean; locale: Locale; pathname: string; onNavigate?: () => void;
 }) {
   const t = useTranslations('nav');
   const settings = localePath(locale, '/configuracion');
   const active = pathname === settings;
   const href = active ? settings : `${settings}?${new URLSearchParams({ volver: pathname })}`;
   return <>
-    {displayName && <p className="account-name" dir="auto" title={displayName}>{displayName}</p>}
     <Link href={href} prefetch={demo ? undefined : false} onClick={onNavigate} aria-current={active ? 'page' : undefined}>
       <Settings size={20} strokeWidth={1.8} aria-hidden />{t('settings')}
     </Link>
@@ -45,9 +44,7 @@ function AccountLinks({ demo, locale, pathname, displayName, onNavigate }: {
   </>;
 }
 
-export function AppShell({ children, demo, displayName }: {
-  children: React.ReactNode; demo: boolean; displayName: string | null;
-}) {
+export function AppShell({ children, demo }: { children: React.ReactNode; demo: boolean }) {
   const pathname = usePathname();
   const requestedLocale = useLocale();
   const locale = isLocale(requestedLocale) ? requestedLocale : defaultLocale;
@@ -69,7 +66,7 @@ export function AppShell({ children, demo, displayName }: {
           <Settings size={22} strokeWidth={1.8} aria-hidden />
         </button>
         <div id="mobile-account" ref={mobileOptions} popover="auto" className="account-nav mobile-account">
-          <AccountLinks demo={demo} locale={locale} pathname={pathname} displayName={displayName}
+          <AccountLinks demo={demo} locale={locale} pathname={pathname}
             onNavigate={() => mobileOptions.current?.hidePopover()} />
         </div>
         <nav className="main-nav" aria-label={app('navigation')}>
@@ -90,7 +87,7 @@ export function AppShell({ children, demo, displayName }: {
             <div><strong>{app('demo')}</strong><small>{app('demoNote')}</small></div>
           </div>}
           <nav className="account-nav" aria-label={nav('options')}>
-            <AccountLinks demo={demo} locale={locale} pathname={pathname} displayName={displayName} />
+            <AccountLinks demo={demo} locale={locale} pathname={pathname} />
           </nav>
         </div>
       </aside>

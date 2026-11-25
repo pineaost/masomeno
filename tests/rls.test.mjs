@@ -371,3 +371,159 @@ test('heladera aísla la disponibilidad, y el recetario vacío admite solo lectu
     await assert.rejects(db.query('delete from public.recipe_ingredients'), { code: '42501' });
   }
 });
+
+test('los ingredientes personales y las repeticiones respetan cuentas y registros anteriores', async (t) => {
+  const db = await PGlite.create();
+  t.after(() => db.close());
+  await db.exec(authFixture);
+  const apply = async (name) => db.exec(await readFile(new URL('../supabase/migrations/' + name + '.sql', import.meta.url), 'utf8'));
+  for (const name of ['20261124150000_accounts_and_invitations', '20261124160000_weight_and_training',
+    '20261124170000_open_registration']) await apply(name);
+  await db.query('insert into auth.users (id) values ($1), ($2)', [alice, bob]);
+
+  const as = async (id) => {
+    await db.exec('set role authenticated');
+    await db.query("select set_config('request.jwt.claim.sub', $1, false)", [id]);
+  };
+  await as(alice);
+  const exercise = (await db.query("insert into public.exercises(name) values ('Press') returning id")).rows[0].id;
+  const old = (await db.query("insert into public.strength_entries(exercise_id,load_kg,performed_on) values ($1,40,'2020-01-02') returning id", [exercise])).rows[0].id;
+  await db.exec('reset role');
+  await apply('20261124183000_personal_fridge_ingredients');
+  await apply('20261124184000_strength_repetitions');
+
+  await db.exec('set role anon');
+  await assert.rejects(db.query('select * from public.personal_fridge_ingredients'), { code: '42501' });
+  await as(alice);
+  assert.deepEqual((await db.query('select repetitions from public.strength_entries where id=$1', [old])).rows, [{ repetitions: null }]);
+  await db.query('update public.strength_entries set repetitions=8 where id=$1', [old]);
+  assert.deepEqual((await db.query('select repetitions from public.strength_entries where id=$1', [old])).rows, [{ repetitions: 8 }]);
+  await assert.rejects(db.query('update public.strength_entries set repetitions=0 where id=$1', [old]), { code: '23514' });
+
+  const add = (name) => db.query('insert into public.personal_fridge_ingredients (name) values ($1) returning id,name,status', [name]);
+  const personal = (await add('Almendras  tostadas')).rows[0];
+  assert.equal(personal.status, 'available');
+  await assert.rejects(add(' alméndras tostadas '), { code: '23505' });
+  await db.query("update public.personal_fridge_ingredients set name='Almendras', status=null where id=$1", [personal.id]);
+
+  await as(bob);
+  assert.deepEqual((await db.query('select name from public.personal_fridge_ingredients')).rows, []);
+  assert.equal((await db.query('delete from public.personal_fridge_ingredients where id=$1', [personal.id])).affectedRows, 0);
+  assert.equal((await db.query('update public.strength_entries set repetitions=4 where id=$1', [old])).affectedRows, 0);
+  await assert.rejects(db.query('insert into public.personal_fridge_ingredients (name,user_id) values ($1,$2)', ['Pera', alice]), { code: '42501' });
+  await add('Almendras');
+
+  await as(alice);
+  assert.deepEqual((await db.query('select name,status from public.personal_fridge_ingredients')).rows, [{ name: 'Almendras', status: null }]);
+  assert.equal((await db.query('delete from public.personal_fridge_ingredients where id=$1', [personal.id])).affectedRows, 1);
+  assert.deepEqual((await db.query('select name from public.personal_fridge_ingredients')).rows, []);
+});
+
+test('la ampliación del catálogo y las preparaciones conservan el historial y el aislamiento', async (t) => {
+  const db = await PGlite.create();
+  t.after(() => db.close());
+  await db.exec(authFixture);
+  const directory = new URL('../supabase/migrations/', import.meta.url);
+  const apply = async (name) => db.exec(await readFile(new URL(name + '.sql', directory), 'utf8'));
+  const rows = async (sql, args) => (await db.query(sql, args)).rows;
+  const as = async (id) => {
+    await db.exec('set role authenticated');
+    await db.query("select set_config('request.jwt.claim.sub', $1, false)", [id]);
+  };
+  for (const name of [
+    '20261124150000_accounts_and_invitations', '20261124160000_weight_and_training',
+    '20261124170000_open_registration', '20261124180000_food_diary', '20261124181000_seed_food_catalog',
+    '20261124182000_fridge_and_recipe_catalog', '20261124183000_personal_fridge_ingredients',
+    '20261124184000_strength_repetitions',
+  ]) await apply(name);
+
+  await db.query('insert into auth.users (id) values ($1), ($2)', [alice, bob]);
+  const flatMeal = (referenceId, amount, unit) => rows(
+    "select public.masomeno_save_meal(null, 'lunch', '2020-01-02T10:00Z', null, null, $1) as id",
+    [JSON.stringify([{ referenceId, amount, unit }])],
+  );
+  await as(alice);
+  const [legacy] = await flatMeal('egg-cooked', 1, 'egg');
+  await db.exec('reset role');
+  await apply('20261124185000_nutrition_and_recipe_composition');
+  const seed = '20261124190000_expand_food_catalog';
+  await apply(seed);
+  await apply(seed);
+
+  assert.deepEqual(await rows('select count(*)::int as count from public.foods'), [{ count: 65 }]);
+  assert.deepEqual(await rows('select count(*)::int as count from public.food_references'), [{ count: 84 }]);
+  assert.deepEqual(await rows("select id, kcal_per_100g::int as kcal from public.food_references where id in ('white-rice-raw', 'white-rice-cooked') order by id"),
+    [{ id: 'white-rice-cooked', kcal: 130 }, { id: 'white-rice-raw', kcal: 365 }]);
+  assert.deepEqual(await rows('select id from public.recipes'), []);
+  assert.deepEqual(await rows('select kcal::float from public.meal_components where meal_id = $1', [legacy.id]), [{ kcal: 77.5 }]);
+  assert.deepEqual(await rows("select id, source_ref from public.food_references where id in ('cod-cooked','hake-vepez-raw') order by id"),
+    [{ id: 'cod-cooked', source_ref: '171956' }, { id: 'hake-vepez-raw', source_ref: 'Vepez / filete interfoliado' }]);
+
+  const [draft, published] = await rows(
+    "insert into public.recipes (names, intensity, published) values ($1, 'medium', false), ($1, 'hearty', true) returning id",
+    [JSON.stringify({ es: 'Prueba', en: 'Fixture', it: 'Prova' })],
+  );
+  const slot = (recipeId, food, ref) => db.query(
+    'insert into public.recipe_ingredients (recipe_id, position, food_id, food_reference_id, grams) values ($1, 1, $2, $3, 200)',
+    [recipeId, food, ref],
+  );
+  await assert.rejects(slot(draft.id, 'egg', 'white-rice-cooked'), { code: '23503' });
+  for (const { id } of [draft, published]) {
+    await slot(id, 'white-rice', 'white-rice-cooked');
+    await db.query(
+      "insert into public.recipe_ingredient_alternatives values ($1, 1, 1, 'brown-rice', 'brown-rice-cooked', 180)", [id],
+    );
+  }
+
+  const groups = [
+    { name: 'Arroz', servings: 1, ingredients: [{ referenceId: 'white-rice-cooked', grams: 200 }] },
+    { name: 'Ensalada', servings: 0.5, ingredients: [
+      { referenceId: 'carrot-raw', grams: 100 }, { referenceId: 'olive-oil-prepared', grams: 5 },
+    ] },
+  ];
+  const save = (input) => rows(
+    "select public.masomeno_save_preparations('lunch', '2020-01-02T10:00Z', 'Almuerzo', $1) as id", [JSON.stringify(input)],
+  );
+  await db.exec('set role anon');
+  await assert.rejects(save(groups), { code: '42501' });
+  await as(alice);
+  assert.deepEqual(await rows('select recipe_id from public.recipe_ingredient_alternatives'), [{ recipe_id: published.id }]);
+  await assert.rejects(db.query('delete from public.recipe_ingredient_alternatives'), { code: '42501' });
+  await assert.rejects(db.query('update public.food_references set kcal_per_100g = 1'), { code: '42501' });
+  await assert.rejects(save([...groups, { name: 'Desconocido', servings: 1, ingredients: [
+    { referenceId: 'kabocha-raw', grams: 50 },
+  ] }]), { code: '22023' });
+  assert.deepEqual(await rows('select id from public.meals'), [legacy]);
+  const [pizza] = await flatMeal('pizza-slice-cheese-thin', 2, 'slice');
+  assert.deepEqual(await rows('select kcal::float from public.meal_components where meal_id = $1', [pizza.id]), [{ kcal: 457.52 }]);
+  const [meal] = await save(groups);
+  const mealSnapshot = () => rows('select preparations from public.meals where id = $1', [meal.id]);
+  const before = await mealSnapshot();
+  assert.deepEqual(before[0].preparations.map(({ name, servings, kcal }) => ({ name, servings, kcal })),
+    [{ name: 'Arroz', servings: 1, kcal: 260 }, { name: 'Ensalada', servings: 0.5, kcal: 85.2 }]);
+  assert.deepEqual(await rows('select sum(kcal)::float as kcal from public.meal_components where meal_id = $1', [meal.id]),
+    [{ kcal: 345.2 }]);
+
+  await db.exec("reset role; update public.food_references set kcal_per_100g = 135 where id = 'white-rice-cooked'");
+  await db.exec("update public.recipes set names = '{\"es\":\"Editada\",\"en\":\"Edited\",\"it\":\"Modificata\"}'; delete from public.recipe_ingredients");
+  await apply(seed);
+  await as(bob);
+  assert.deepEqual(await mealSnapshot(), []);
+  assert.deepEqual(await rows('select id from public.meal_components where meal_id = $1', [meal.id]), []);
+  assert.equal((await db.query('delete from public.meals where id = $1', [meal.id])).affectedRows, 0);
+  await as(alice);
+  assert.deepEqual(await mealSnapshot(), before);
+  assert.deepEqual(await rows("select kcal_per_100g::int as kcal from public.food_references where id = 'white-rice-cooked'"), [{ kcal: 135 }]);
+
+  const components = await rows(
+    'select id, food_reference_id as "referenceId", amount::float, unit from public.meal_components where meal_id = $1 order by position',
+    [meal.id],
+  );
+  const edit = (lines) => rows("select public.masomeno_save_meal($1, 'lunch', '2020-01-02T10:00Z', 'Renombrada', null, $2)",
+    [meal.id, JSON.stringify(lines)]);
+  await edit(components);
+  assert.deepEqual(await mealSnapshot(), before);
+  await edit(components.slice(0, 1));
+  assert.deepEqual(await mealSnapshot(), [{ preparations: null }]);
+  assert.deepEqual(await rows('select kcal::float from public.meal_components where meal_id = $1', [meal.id]), [{ kcal: 260 }]);
+});

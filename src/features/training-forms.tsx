@@ -38,6 +38,11 @@ export function StrengthForm({ locale, exercise, unit, today, entry, close }: {
           defaultValue={entry ? Number(displayWeight(entry.load_kg, unit).toFixed(5)) : undefined} />
       </label>
       <label>
+        {t('repetitionsInput')}
+        <input name="repetitions" type="number" inputMode="numeric" min="1" max="999" step="1"
+          defaultValue={entry?.repetitions ?? undefined} />
+      </label>
+      <label>
         {weight('date')}
         <input name="performed_on" type="date" defaultValue={entry?.performed_on ?? today} max={today} required />
       </label>

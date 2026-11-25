@@ -66,7 +66,10 @@ function performedDay(fields: FormData, timeZone: string, now: Date) {
 export function parseStrength(fields: FormData, unit: WeightUnit, timeZone: string, now: Date) {
   const load_kg = weightValue(readText(fields, 'load'), unit, 0, 2000);
   const performed_on = performedDay(fields, timeZone, now);
-  return load_kg !== null && performed_on ? { load_kg, performed_on } : null;
+  const reps = readText(fields, 'repetitions');
+  if (load_kg === null || !performed_on || (fields.has('repetitions') && reps === null) ||
+    (reps && !/^[1-9]\d{0,2}$/.test(reps))) return null;
+  return { load_kg, performed_on, ...(reps === null ? {} : { repetitions: reps === '' ? null : Number(reps) }) };
 }
 
 export function parseTreadmill(fields: FormData, unit: DistanceUnit, timeZone: string, now: Date) {

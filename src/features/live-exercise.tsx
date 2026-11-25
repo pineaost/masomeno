@@ -78,7 +78,10 @@ export function LiveExercise({ locale, exercise, entries, unit, today }: {
               <li key={entry.id}>
                 <span className="category-icon"><Dumbbell size={18} aria-hidden /></span>
                 <time dateTime={entry.performed_on}>{date(entry.performed_on)}</time>
-                <strong>{load(entry.load_kg)}</strong>
+                <div className="history-load">
+                  <strong>{load(entry.load_kg)}</strong>
+                  {entry.repetitions != null && <small>{t('repetitions', { count: entry.repetitions })}</small>}
+                </div>
                 <EditRecordButton label={date(entry.performed_on)} onClick={() => setModal(entry)} />
               </li>
             ))}

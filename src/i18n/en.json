@@ -185,11 +185,16 @@
     "egg": "Large egg",
     "banana": "Medium banana",
     "tablespoon": "Tablespoon",
+    "slice": "Slice",
+    "unit": "Unit",
+    "piece": "Piece",
+    "estimate": "Estimate",
     "lineEstimate": "{grams} g · {kcal} kcal",
     "mealTotal": "Estimated total: {kcal} kcal",
     "source": "Source"
   },
   "recipes": {
+    "optional": "Optional",
     "filters": "Recipe intensity",
     "all": "All",
     "light": "Light",
@@ -210,6 +215,20 @@
     "unavailable": "We couldn’t load the recipe book. Try again."
   },
   "fridge": {
+    "category": "Category",
+    "allCategories": "All categories",
+    "personal": "Personal",
+    "availableTitle": "On hand",
+    "clearAvailable": "Unmark {food}",
+    "editIngredient": "Edit {food}",
+    "searchTip": "Search by name or choose a category.",
+    "more": "Show more",
+    "addIngredient": "Add ingredient",
+    "editTitle": "Edit ingredient",
+    "ingredientName": "Ingredient name",
+    "removeIngredient": "Remove this personal ingredient?",
+    "duplicate": "An ingredient with that name already exists.",
+    "personalPending": "Apply the My fridge migration to save personal ingredients.",
     "hint": "Tap a selected option again to clear it.",
     "search": "Search ingredients",
     "available": "I have it",
@@ -247,6 +266,8 @@
     "condition": "Weigh-in conditions (optional)"
   },
   "training": {
+    "repetitionsInput": "Reps (optional)",
+    "repetitions": "{count, plural, one {# rep} other {# reps}}",
     "newExercise": "New exercise",
     "editExercise": "Edit exercise",
     "removeExercise": "Delete this exercise and all its entries?",

@@ -31,6 +31,15 @@ async function allRows<Row>(page: (from: number, through: number) => PromiseLike
   }
 }
 
+async function loadStrengthEntries({ supabase, id }: NonNullable<Awaited<ReturnType<typeof trackingSession>>>, exercises: string[]) {
+  if (!exercises.length) return [];
+  // A wildcard also reads older installations without the optional repetitions column.
+  const entries = await allRows((from, through) => supabase.from('strength_entries').select('*')
+    .eq('user_id', id).in('exercise_id', exercises).order('performed_on').order('created_at').order('id').range(from, through));
+  return entries?.map(({ id, exercise_id, load_kg, performed_on, repetitions }) =>
+    ({ id, exercise_id, load_kg, performed_on, repetitions: repetitions ?? null })) ?? null;
+}
+
 export async function loadWeight(locale: Locale) {
   const session = await trackingSession(locale);
   if (!session) return null;
@@ -58,10 +67,7 @@ export async function loadGym(locale: Locale) {
   if (!exercises || recent.error || !recent.data) return null;
   const favorites = exercises.filter((exercise) => exercise.favorite_slot !== null).sort((a, b) =>
     (a.favorite_slot ?? 0) - (b.favorite_slot ?? 0));
-  const entries = favorites.length ? await allRows((from, through) =>
-    supabase.from('strength_entries').select('id,exercise_id,load_kg,performed_on')
-      .eq('user_id', id).in('exercise_id', favorites.map(({ id }) => id))
-      .order('performed_on').order('created_at').order('id').range(from, through)) : [];
+  const entries = await loadStrengthEntries(session, favorites.map(({ id }) => id));
   if (!entries) return null;
   return {
     exercises,
@@ -80,8 +86,7 @@ export async function loadExercise(locale: Locale, exerciseId: string) {
   const { supabase, id, timeZone, weight_unit } = session;
   const [exercise, entries] = await Promise.all([
     supabase.from('exercises').select('id,name,favorite_slot').eq('user_id', id).eq('id', exerciseId).maybeSingle(),
-    allRows((from, through) => supabase.from('strength_entries').select('id,exercise_id,load_kg,performed_on')
-      .eq('user_id', id).eq('exercise_id', exerciseId).order('performed_on').order('created_at').order('id').range(from, through)),
+    loadStrengthEntries(session, [exerciseId]),
   ]);
   if (exercise.error || !entries) return null;
   if (!exercise.data) notFound();

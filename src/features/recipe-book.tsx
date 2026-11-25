@@ -3,8 +3,9 @@ import Link from 'next/link';
 import { getFormatter, getTranslations } from 'next-intl/server';
 import { PageHeading } from '@/components/page-heading';
 import { localePath, type Locale } from '@/i18n/config';
-import type { FoodAvailability, FoodNames } from '@/lib/food';
+import type { FoodAvailability, FoodNames, FoodReference } from '@/lib/food';
 import { ingredientAvailability, recipeIntensities, type FridgeSelection, type RecipeFilter, type RecipeSummary } from '@/lib/recipe-catalog';
+import type { RecipeIngredient } from '@/lib/recipe-composition';
 import { FoodNavigation } from './food';
 import { FridgeControls } from './fridge';
 
@@ -24,7 +25,7 @@ async function RecipeMeta({ locale, recipe }: { locale: Locale; recipe: RecipeSu
 }
 
 export async function RecipeBook({ locale, state, recipes, filter, selections, demo }: {
-  locale: Locale; state: FoodAvailability; recipes: (RecipeSummary & { ingredients: { food_id: string }[] })[];
+  locale: Locale; state: FoodAvailability; recipes: (RecipeSummary & { ingredients: RecipeIngredient[] })[];
   filter: RecipeFilter; selections: FridgeSelection[]; demo: boolean;
 }) {
   const t = await getTranslations({ locale });
@@ -42,7 +43,7 @@ export async function RecipeBook({ locale, state, recipes, filter, selections, d
       {state !== 'ready' ? <p className="empty-state" role="status">{t(`recipeState.${state}`)}</p>
         : !listed.length ? <p className="empty-state">{t(filter === 'all' ? 'empty.recipes.title' : 'recipes.emptyFilter')}</p>
           : <ul className="recipe-list">{listed.map((recipe) => {
-            const availability = ingredientAvailability(recipe.ingredients, selections);
+            const availability = ingredientAvailability(recipe.ingredients.filter((ingredient) => !ingredient.is_optional), selections);
             const marked = availability.available + availability.unavailable;
             return <li key={recipe.id}>
               <Link href={`${href}/${recipe.id}${filterQuery(filter)}`} prefetch={false}>
@@ -64,7 +65,7 @@ export async function RecipeBook({ locale, state, recipes, filter, selections, d
 type Detail = RecipeSummary & {
   base_servings: number;
   instructions: Partial<FoodNames>;
-  ingredients: { food_id: string; position: number; is_main: boolean; grams: number | null; food: { names: FoodNames } }[];
+  ingredients: (RecipeIngredient & { food: { names: FoodNames }; reference?: FoodReference })[];
 };
 
 export async function RecipeDetail({ locale, recipe, filter, selections, fridgeReady }: {
@@ -90,9 +91,12 @@ export async function RecipeDetail({ locale, recipe, filter, selections, fridgeR
         <ul className="compact-food-list">
           {recipe.ingredients.toSorted((a, b) => a.position - b.position).map((ingredient) => {
             const name = ingredient.food.names[locale];
+            const ref = ingredient.reference;
             return <li key={ingredient.position}>
               <div><strong>{name}</strong>
+                {ref && <small> · {ref.variant_names?.[locale] ?? t(`nutrition.${ref.preparation}`)}</small>}
                 {ingredient.grams !== null && <small> · {format.number(ingredient.grams)} g</small>}
+                {ingredient.is_optional && <small> · {t('recipes.optional')}</small>}
               </div>
               {fridgeReady && <FridgeControls locale={locale} id={ingredient.food_id} name={name}
                 status={selected.get(ingredient.food_id) ?? null} />}

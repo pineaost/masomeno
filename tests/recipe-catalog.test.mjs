@@ -1,6 +1,17 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { ingredientAvailability, readRecipeFilter, recipeIntensities } from '../src/lib/recipe-catalog.ts';
+import { ingredientAvailability, ingredientNameKey, parsePersonalIngredient, readRecipeFilter, recipeIntensities } from '../src/lib/recipe-catalog.ts';
+
+test('los nombres personales conservan el texto visible y comparan variantes evidentes', () => {
+  const fields = new FormData();
+  fields.set('name', '  Alméndras   tostadas ');
+  assert.equal(parsePersonalIngredient(fields), 'Alméndras tostadas');
+  assert.equal(ingredientNameKey('  Alméndras   tostadas '), ingredientNameKey('almendras tostadas'));
+  fields.set('name', '   ');
+  assert.equal(parsePersonalIngredient(fields), null);
+  fields.set('name', 'A'.repeat(81));
+  assert.equal(parsePersonalIngredient(fields), null);
+});
 
 test('el recetario admite las cuatro intensidades y conserva Todas como opción general', () => {
   assert.deepEqual(recipeIntensities.map(readRecipeFilter), ['light', 'medium', 'hearty', 'extraHearty']);

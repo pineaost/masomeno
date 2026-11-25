@@ -2,15 +2,12 @@
 
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import { useFormatter, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useActionState, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { PageHeading } from '@/components/page-heading';
-import { RecordDialog } from '@/components/tracking-ui';
 import type { FormStatus } from '@/lib/account-fields';
-import type { FoodAvailability } from '@/lib/food';
 import type { Preferences, Profile } from '@/lib/supabase/database';
-import type { TrackingAction } from '@/lib/tracking';
 import { PreferenceFields } from './preference-fields';
 
 type SaveAction = (state: FormStatus, fields: FormData) => Promise<FormStatus>;
@@ -33,21 +30,16 @@ function SubmitButton() {
 }
 
 export function AccountSettings({
-  profile, preferences, goal, backHref, saveProfile, savePreferences, saveGoal,
+  profile, preferences, backHref, saveProfile, savePreferences,
 }: {
   profile: Profile;
   preferences: Preferences;
-  goal: { state: FoodAvailability; kcal: number | null };
   backHref: string;
   saveProfile: SaveAction;
   savePreferences: SaveAction;
-  saveGoal: TrackingAction;
 }) {
   const t = useTranslations('settings');
   const nav = useTranslations('nav');
-  const food = useTranslations('nutrition');
-  const format = useFormatter();
-  const [goalOpen, setGoalOpen] = useState(false);
   const [preferenceValues, setPreferenceValues] = useState(preferences);
   const [profileValues, setProfileValues] = useState({
     display_name: profile.display_name ?? '',
@@ -111,23 +103,6 @@ export function AccountSettings({
           </div>
         </form>
       </section>
-      <section className="panel section-panel settings-panel" id="objetivo-calorico">
-        <div className="panel-heading">
-          <h2>{food('goal')}</h2>
-          {goal.state === 'ready' && <button type="button" className="button secondary" onClick={() => setGoalOpen(true)}>
-            {food(goal.kcal === null ? 'setGoal' : 'editGoal')}
-          </button>}
-        </div>
-        <p className="section-copy">{goal.state === 'ready'
-          ? goal.kcal === null ? food('noGoal') : food('goalValue', { kcal: format.number(goal.kcal) })
-          : food(goal.state)}</p>
-      </section>
-      {goalOpen && <RecordDialog title={food('goal')} save={saveGoal} close={() => setGoalOpen(false)}>
-        <label>{food('goalInput')}
-          <input type="number" name="kcal" inputMode="numeric" min="1" max="10000" step="1" defaultValue={goal.kcal ?? ''} />
-        </label>
-        <p className="section-copy">{food('goalHint')}</p>
-      </RecordDialog>}
     </>
   );
 }

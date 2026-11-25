@@ -55,7 +55,6 @@ export async function PrivateScreen({ params, screen, register }: ScreenParams &
       <Suspense fallback={<CaloriesCard live state="loading" consumed={0} goal={null} />}>
         <TodayCalories locale={locale} />
       </Suspense>
-      <TrackingBoundary locale={locale}><TrackingOverview locale={locale} screen="home" /></TrackingBoundary>
     </>;
   }
   if (!isFood(screen)) {

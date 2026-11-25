@@ -27,13 +27,6 @@ async function goalOn({ supabase, id }: Session, day: string) {
     .order('effective_on', { ascending: false }).limit(1).maybeSingle();
 }
 
-export async function loadCalorieGoal(locale: Locale) {
-  const session = await foodSession(locale);
-  if (!session) return { state: 'unavailable' as const, kcal: null };
-  const result = await goalOn(session, localFoodDay(new Date(), session.zone).date);
-  return { state: foodAvailability([result.error]), kcal: result.data?.kcal ?? null };
-}
-
 function foodRecords({ supabase, id }: Session) {
   return supabase.from('meals').select(
     'id,category,consumed_at,name,manual_kcal,components:meal_components(id,position,food_reference_id,amount,unit,grams_per_unit,kcal_per_100g,kcal)',
@@ -59,7 +52,7 @@ export async function loadFoodDay(locale: Locale, includeCatalog = false) {
     goalOn(session, day.date),
     dayRecords(session, day.start, day.end),
     includeCatalog ? session.supabase.from('food_references').select(
-      'id,preparation,kcal_per_100g,protein_per_100g,source_url,source_description,validation,portion_unit,portion_grams,food:foods!inner(names,synonyms,category:food_categories!inner(id,names))',
+      '*,food:foods!inner(names,synonyms,category:food_categories!inner(id,names))',
     ).order('id') : null,
     includeCatalog ? foodRecords(session).limit(5) : null,
   ]);

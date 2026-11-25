@@ -54,7 +54,9 @@ function CatalogPicker({ catalog, locale, onSelect }: {
                 <li key={food.id}>
                   <button type="button" disabled={food.validation !== 'verified' || food.kcal_per_100g === null}
                     onClick={() => onSelect(food)}>
-                    <span><strong>{food.food.names[locale]}</strong><small>{t(food.preparation)}</small></span>
+                    <span><strong>{food.food.names[locale]}</strong>
+                      <small>{food.variant_names?.[locale] ?? t(food.preparation)}{food.is_estimate && <> · {t('estimate')}</>}</small>
+                    </span>
                     <small>{food.validation !== 'verified' || food.kcal_per_100g === null
                       ? t('unverified') : t('per100', { kcal: format.number(food.kcal_per_100g) })}</small>
                   </button>
@@ -178,7 +180,9 @@ function MealEditor({ meal, repeatName, mode, catalog, locale, dateTime, zone, c
               const label = line.food.food.names[locale];
               return <li key={line.key}>
                 <div className="food-line-heading">
-                  <div><strong>{label}</strong><small>{t(line.food.preparation)}</small></div>
+                  <div><strong>{label}</strong>
+                    <small>{line.food.variant_names?.[locale] ?? t(line.food.preparation)}{line.food.is_estimate && <> · {t('estimate')}</>}</small>
+                  </div>
                   <button type="button" className="icon-button" aria-label={t('removeFood', { food: label })}
                     onClick={() => {
                       setLines(lines.filter((item) => item.key !== line.key));

@@ -6,7 +6,7 @@ import { demoMode } from '@/lib/account';
 import { readLocale } from '@/lib/auth-paths';
 import { parseCalorieGoal, parseMeal } from '@/lib/food';
 import { foodSession } from '@/lib/food-data';
-import type { FridgeStatus } from '@/lib/recipe-catalog';
+import { ingredientNameKey, parsePersonalIngredient, type FridgeStatus } from '@/lib/recipe-catalog';
 import type { MutationResult } from '@/lib/tracking';
 import { isTrackingId } from '@/lib/tracking-fields';
 
@@ -56,7 +56,7 @@ export async function setCalorieGoal(locale: Locale, fields: FormData): Promise<
   const session = await writeSession(locale);
   if (!session) return 'unavailable';
   const result = await session.supabase.rpc('masomeno_set_calorie_goal', { goal_kcal: goal.kcal });
-  return finish(locale, result, ['', '/comidas', '/configuracion']);
+  return finish(locale, result, ['']);
 }
 
 export async function setFridgeIngredient(locale: Locale, foodId: string, status: FridgeStatus | null): Promise<MutationResult> {
@@ -67,4 +67,44 @@ export async function setFridgeIngredient(locale: Locale, foodId: string, status
   const result = await session.supabase.rpc('masomeno_set_fridge_ingredient', { ingredient_id: foodId, ingredient_status: status });
   if (result.data) revalidatePath('/[locale]/comidas/recetario/[id]', 'page');
   return finish(locale, result, ['/comidas/heladera', '/comidas/recetario']);
+}
+
+const fridgePath = ['/comidas/heladera'];
+
+export async function savePersonalIngredient(locale: Locale, id: string | null, fields: FormData): Promise<MutationResult> {
+  if (id !== null && !isTrackingId(id)) return 'invalid';
+  const name = parsePersonalIngredient(fields);
+  if (!name) return 'invalid';
+  const session = await writeSession(locale);
+  if (!session) return 'unavailable';
+  const { data: catalog, error } = await session.supabase.from('foods').select('names,synonyms');
+  if (error || !catalog) return 'unavailable';
+  const key = ingredientNameKey(name);
+  if (catalog.some(({ names, synonyms }) => [...Object.values(names), ...synonyms].some((term) => ingredientNameKey(term) === key))) {
+    return 'duplicate';
+  }
+
+  const table = session.supabase.from('personal_fridge_ingredients');
+  const write = id === null ? table.insert({ name }) : table.update({ name }).eq('user_id', session.id).eq('id', id);
+  const result = await write.select('id').maybeSingle();
+  if (result.error?.code === '23505') return 'duplicate';
+  return finish(locale, result, fridgePath);
+}
+
+export async function setPersonalIngredientStatus(locale: Locale, id: string, status: FridgeStatus | null): Promise<MutationResult> {
+  if (!isTrackingId(id) || (status !== null && status !== 'available' && status !== 'unavailable')) return 'invalid';
+  const session = await writeSession(locale);
+  if (!session) return 'unavailable';
+  const result = await session.supabase.from('personal_fridge_ingredients').update({ status })
+    .eq('user_id', session.id).eq('id', id).select('id').maybeSingle();
+  return finish(locale, result, fridgePath);
+}
+
+export async function deletePersonalIngredient(locale: Locale, id: string): Promise<MutationResult> {
+  if (!isTrackingId(id)) return 'invalid';
+  const session = await writeSession(locale);
+  if (!session) return 'unavailable';
+  const result = await session.supabase.from('personal_fridge_ingredients').delete()
+    .eq('user_id', session.id).eq('id', id).select('id').maybeSingle();
+  return finish(locale, result, fridgePath);
 }

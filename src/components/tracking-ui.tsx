@@ -20,12 +20,13 @@ export function EditRecordButton({ onClick, label }: { onClick: () => void; labe
   );
 }
 
-export function RecordDialog({ title, close, save, remove, removePrompt, startWithRemoval = false, children }: {
+export function RecordDialog({ title, close, save, remove, removePrompt, duplicateMessage, startWithRemoval = false, children }: {
   title: string;
   close: () => void;
   save: TrackingAction;
   remove?: () => Promise<MutationResult>;
   removePrompt?: string;
+  duplicateMessage?: string;
   startWithRemoval?: boolean;
   children: React.ReactNode;
 }) {
@@ -58,7 +59,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, startWi
     <Dialog title={title} onClose={close}>
       <form onSubmit={submit} className="form-stack" hidden={confirm}>
         <fieldset disabled={pending} className="form-stack">{children}</fieldset>
-        {!confirm && error && <p role="alert">{t(error)}</p>}
+        {!confirm && error && <p role="alert">{error === 'duplicate' && duplicateMessage ? duplicateMessage : t(error)}</p>}
         <div className="form-actions">
           {remove && <button type="button" className="button secondary" disabled={pending}
             onClick={() => { setError(null); setConfirm(true); }}>{app('remove')}</button>}

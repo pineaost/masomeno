@@ -17,12 +17,24 @@ export type RecipeSummary = {
 
 export type FridgeStatus = 'available' | 'unavailable';
 export type FridgeSelection = { food_id: string; status: FridgeStatus };
+export type PersonalFridgeIngredient = { id: string; name: string; status: FridgeStatus | null };
 export type FridgeFood = {
   id: string;
   names: FoodNames;
   synonyms: string[];
   category: { id: string; names: FoodNames };
 };
+
+export function ingredientNameKey(value: string) {
+  return value.normalize('NFD').replace(/\p{M}/gu, '').trim().replace(/\s+/g, ' ').toLowerCase();
+}
+
+export function parsePersonalIngredient(fields: FormData) {
+  const value = fields.get('name');
+  if (typeof value !== 'string') return null;
+  const name = value.trim().replace(/\s+/g, ' ');
+  return name.length <= 80 && ingredientNameKey(name) ? name : null;
+}
 
 export function ingredientAvailability(ingredients: { food_id: string }[], selections: FridgeSelection[]) {
   const selected = new Map(selections.map(({ food_id, status }) => [food_id, status]));

@@ -1,6 +1,7 @@
 import type { Locale } from '@/i18n/config';
 import type { FoodNames, FoodReference, MealCategory, MealComponent, MealLine, MealRecord } from '@/lib/food';
-import type { FridgeSelection, FridgeStatus, RecipeSummary } from '@/lib/recipe-catalog';
+import type { FridgeSelection, FridgeStatus, PersonalFridgeIngredient, RecipeSummary } from '@/lib/recipe-catalog';
+import type { PreparationInput, PreparationSnapshot, RecipeAlternative, RecipeIngredient } from '@/lib/recipe-composition';
 import type { DistanceUnit, HeightUnit, WeightUnit } from '@/lib/units';
 
 export type Profile = {
@@ -24,7 +25,7 @@ export type WeightMeasurement = {
   condition: string | null;
 };
 export type Exercise = { id: string; name: string; favorite_slot: number | null };
-export type StrengthEntry = { id: string; exercise_id: string; load_kg: number; performed_on: string };
+export type StrengthEntry = { id: string; exercise_id: string; load_kg: number; performed_on: string; repetitions?: number | null };
 export type TreadmillSession = { id: string; distance_km: number; duration_seconds: number; performed_on: string };
 
 type RecordTable<Row extends { id: string }, Insert, Update = Partial<Insert>> = {
@@ -56,7 +57,7 @@ export type Database = {
         Update: Partial<Omit<Exercise, 'id'>>;
         Relationships: [];
       };
-      strength_entries: RecordTable<StrengthEntry, Omit<StrengthEntry, 'id'>, Partial<Pick<StrengthEntry, 'load_kg' | 'performed_on'>>>;
+      strength_entries: RecordTable<StrengthEntry, Omit<StrengthEntry, 'id'>, Partial<Omit<StrengthEntry, 'id' | 'exercise_id'>>>;
       treadmill_sessions: RecordTable<TreadmillSession, Omit<TreadmillSession, 'id'>>;
       calorie_goals: {
         Row: { user_id: string; effective_on: string; kcal: number | null };
@@ -93,7 +94,7 @@ export type Database = {
         }];
       };
       meals: {
-        Row: Omit<MealRecord, 'components'> & { user_id: string };
+        Row: Omit<MealRecord, 'components'> & { user_id: string; preparations?: PreparationSnapshot[] | null };
         Insert: never;
         Update: never;
         Relationships: [];
@@ -115,6 +116,12 @@ export type Database = {
         Update: never;
         Relationships: [];
       };
+      personal_fridge_ingredients: {
+        Row: PersonalFridgeIngredient & { user_id: string; name_key: string; matched_food_id?: string | null };
+        Insert: { name: string };
+        Update: { name?: string; status?: FridgeStatus | null };
+        Relationships: [];
+      };
       recipes: {
         Row: RecipeSummary & { base_servings: number; instructions: Partial<FoodNames>; published: boolean };
         Insert: never;
@@ -122,7 +129,7 @@ export type Database = {
         Relationships: [];
       };
       recipe_ingredients: {
-        Row: { recipe_id: string; food_id: string; position: number; is_main: boolean; grams: number | null };
+        Row: RecipeIngredient & { recipe_id: string };
         Insert: never;
         Update: never;
         Relationships: [
@@ -139,6 +146,12 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      recipe_ingredient_alternatives: {
+        Row: RecipeAlternative;
+        Insert: never;
+        Update: never;
+        Relationships: [];
       };
     };
     Views: Record<never, never>;
@@ -159,6 +172,10 @@ export type Database = {
           lines: MealLine[];
         };
         Returns: string | null;
+      };
+      masomeno_save_preparations: {
+        Args: { meal_category: MealCategory; meal_time: string; meal_name: string | null; groups: PreparationInput[] };
+        Returns: string;
       };
     };
     Enums: Record<never, never>;

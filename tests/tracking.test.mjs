@@ -64,6 +64,15 @@ test('el resumen de peso y la media móvil se calculan sobre registros observado
   assert.deepEqual(chart.map(({ day }) => day), observations.map(({ measured_at }) => measured_at));
 });
 
+test('la carga acepta repeticiones opcionales y permite quitar un valor anterior', () => {
+  const values = { load: '40', performed_on: '2026-11-24' };
+  assert.equal(parseStrength(form({ ...values, repetitions: '12' }), 'kg', zone, now)?.repetitions, 12);
+  assert.equal(parseStrength(form({ ...values, repetitions: '' }), 'kg', zone, now)?.repetitions, null);
+  for (const repetitions of ['0', '-3', '1.5', '1000']) {
+    assert.equal(parseStrength(form({ ...values, repetitions }), 'kg', zone, now), null);
+  }
+});
+
 test('las cargas comparan la última marca con la anterior y los destacados ocupan cuatro lugares', () => {
   assert.deepEqual(strengthSummary([30, 50, 45].map((load_kg) => ({ load_kg }))), { latest: 45, best: 50, change: -5 });
   assert.deepEqual(strengthSummary([{ load_kg: 0 }]), { latest: 0, best: 0, change: null });

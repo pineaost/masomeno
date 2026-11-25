@@ -11,7 +11,7 @@ import { LiveGym } from './live-gym';
 import { LiveTreadmill } from './live-treadmill';
 import { LiveWeight } from './live-weight';
 
-type Overview = 'home' | 'progress' | 'gym';
+type Overview = 'progress' | 'gym';
 type Detail = { kind: 'treadmill' } | { kind: 'exercise'; id: string };
 
 export async function TrackingBoundary({ locale, children }: { locale: Locale; children: React.ReactNode }) {
@@ -41,12 +41,8 @@ export async function TrackingOverview({ locale, screen }: { locale: Locale; scr
   }
 
   const data = await loadWeight(locale);
-  if (!data && screen === 'home') {
-    const t = await getTranslations({ locale, namespace: 'tracking' });
-    return <p className="empty-state" role="status">{t('loadError')}</p>;
-  }
-  if (!data) return <Unavailable locale={locale} path={screen === 'home' ? '' : '/evolucion'} section={screen} />;
-  return <LiveWeight locale={locale} {...data} now={now} compact={screen === 'home'} />;
+  if (!data) return <Unavailable locale={locale} path="/evolucion" section={screen} />;
+  return <LiveWeight locale={locale} {...data} now={now} />;
 }
 
 async function DetailContent({ locale, detail }: { locale: Locale; detail: Detail }) {

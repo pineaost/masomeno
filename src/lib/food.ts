@@ -6,18 +6,25 @@ import { isTrackingId, measuredInstant } from './tracking-fields.ts';
 export const mealCategories = ['firstMeal', 'lunch', 'snack', 'dinner', 'other'] as const;
 export type MealCategory = (typeof mealCategories)[number];
 export type FoodNames = Record<Locale, string>;
-export type Portion = 'egg' | 'banana' | 'tablespoon';
+const portionUnits = ['egg', 'banana', 'tablespoon', 'slice', 'unit', 'piece'] as const;
+export type Portion = (typeof portionUnits)[number];
 export type FoodUnit = 'g' | Portion;
 export type FoodReference = {
   id: string;
   preparation: 'raw' | 'cooked' | 'prepared';
   kcal_per_100g: number | null;
   protein_per_100g: number | null;
+  carbs_per_100g: number | null;
+  fat_per_100g: number | null;
   source_url: string | null;
   source_description: string | null;
   validation: 'verified' | 'pending';
   portion_unit: Portion | null;
   portion_grams: number | null;
+  variant_names?: FoodNames | null;
+  source_kind?: 'sr-legacy' | 'fndds' | 'crea' | 'label' | 'official' | null;
+  source_ref?: string | null;
+  is_estimate?: boolean;
 };
 export type CatalogFood = FoodReference & {
   food: { names: FoodNames; synonyms: string[]; category: { id: string; names: FoodNames } };
@@ -50,7 +57,8 @@ function normalize(value: string) {
 }
 
 export function matchesFood(item: CatalogFood, query: string) {
-  return matchesFoodName(item.food, query);
+  const variants = item.variant_names ? Object.values(item.variant_names) : [];
+  return matchesFoodName({ names: item.food.names, synonyms: [...item.food.synonyms, ...variants] }, query);
 }
 
 export function matchesFoodName(food: { names: FoodNames; synonyms: string[] }, query: string) {
@@ -132,9 +140,9 @@ export function parseMeal(fields: FormData, zone: string, now: Date, existingTim
     const id = ids[index];
     const rawAmount = amounts[index];
     const amount = foodAmount(typeof rawAmount === 'string' ? rawAmount : null);
-    const unit = units[index];
+    const unit = units[index] === 'g' ? 'g' : portionUnits.find((portion) => portion === units[index]);
     if (typeof referenceId !== 'string' || !/^[a-z0-9-]{1,80}$/.test(referenceId) || (id !== '' && !isTrackingId(id)) ||
-      amount === null || amount <= 0 || (unit !== 'g' && unit !== 'egg' && unit !== 'banana' && unit !== 'tablespoon')) return null;
+      amount === null || amount <= 0 || !unit) return null;
     lines.push({ id: id || null, referenceId, amount, unit });
   }
   return { category, consumedAt, name: name || null, kcal: null, lines };

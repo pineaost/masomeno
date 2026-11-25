@@ -113,11 +113,18 @@ export async function saveStrength(locale: Locale, exerciseId: string, id: strin
   if (session.weight_unit !== unit) return 'conflict';
   const record = parseStrength(fields, session.weight_unit, session.timeZone, new Date());
   if (!record) return 'invalid';
+  const owner = session.id;
   const table = session.supabase.from('strength_entries');
-  const write = id === null
-    ? table.insert({ ...record, exercise_id: exerciseId })
-    : table.update(record).eq('user_id', session.id).eq('exercise_id', exerciseId).eq('id', id);
-  const result = await write.select('id').maybeSingle();
+  function write(values: NonNullable<ReturnType<typeof parseStrength>>) {
+    const mutation = id === null
+      ? table.insert({ ...values, exercise_id: exerciseId })
+      : table.update(values).eq('user_id', owner).eq('exercise_id', exerciseId).eq('id', id);
+    return mutation.select('id').maybeSingle();
+  }
+  const { repetitions, ...base } = record;
+  const first = await write(id === null && repetitions === null ? base : record);
+  const result = repetitions === null && first.error && ['PGRST204', '42703'].includes(first.error.code)
+    ? await write(base) : first;
   if (result.error?.code === '23503') return 'conflict';
   return finish(locale, exercisePaths(exerciseId), result);
 }
