@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
-import { recipeCaloriesPerServing } from '../src/lib/recipe-composition.ts';
+import { recipeCaloriesPerServing, resolveRecipeDraft } from '../src/lib/recipe-composition.ts';
 
 const alice = '00000000-0000-4000-a000-000000000001';
 const bob = '00000000-0000-4000-a000-000000000002';
@@ -677,4 +677,57 @@ test('el primer recetario es idempotente y los consumos combinados admiten cambi
   assert.equal(after[0].ingredients[0].per100g.kcal, 266);
   assert.equal(after[0].ingredients[0].grams, 86);
   assert.deepEqual(after[0].ingredients[0].sourceRef, before[0].ingredients[0].sourceRef);
+
+  await db.exec('reset role');
+  await apply('20261125110000_mixed_meals_and_household_measures.sql');
+  await as(alice);
+  assert.deepEqual(await snapshot(), after);
+  const [parent] = await rows(`
+    select r.*, jsonb_agg(i order by i.position) as ingredients
+    from public.recipes r join public.recipe_ingredients i on i.recipe_id = r.id
+    where r.id = $1 group by r.id
+  `, [recipes[8].id]);
+  const part = { recipeId: parent.id, part: 'carrot-egg-salad', servings: 0.5, choices: {}, quantities: {} };
+  const salad = resolveRecipeDraft({ ...parent, alternatives: [] }, part, refs);
+  assert.deepEqual(salad.map(({ referenceId }) => referenceId), ['carrot-raw', 'egg-cooked', 'olive-oil-prepared']);
+  const dinner = [
+    { name: 'Bife', role: 'main', servings: 1, measureUnit: 'steakMedium', ingredients: [{ referenceId: 'strip-steak-cooked', grams: 180 }] },
+    { name: 'Ensalada', role: 'side', servings: 0.5, ingredients: salad },
+  ];
+  const save = (value) => rows(mealSql, [JSON.stringify(value)]);
+  await assert.rejects(save([{ ...dinner[0], servings: 2 }]), { code: '22023' });
+  await assert.rejects(save([{ ...dinner[0], role: 'extra' }]), { code: '22023' });
+  assert.equal((await rows('select id from public.meals')).length, 1);
+  const [mixed] = await save(dinner);
+  const mixedSnapshot = async () => (await rows('select preparations from public.meals where id = $1', [mixed.id]))[0]?.preparations;
+  const original = await mixedSnapshot();
+  assert.deepEqual(original.map(({ kcal, role, measureGrams }) => ({ kcal, role, measureGrams })), [
+    { kcal: 401.4, role: 'main', measureGrams: 180 }, { kcal: 90.19, role: 'side', measureGrams: undefined },
+  ]);
+  assert.equal((await rows('select sum(kcal)::float as kcal from public.meal_components where meal_id = $1', [mixed.id]))[0].kcal, 491.59);
+  assert.deepEqual((await rows(`select id from public.foods where 'fish' = any(synonyms) order by id`)).map(({ id }) => id),
+    ['cod', 'hake', 'salmon', 'tuna']);
+  assert.deepEqual(await rows(`
+    select id, portion_grams::float as unit, (additional_portions->>'handful')::float as handful
+    from public.food_references where id in ('almonds-raw','walnuts-raw') order by id
+  `), [{ id: 'almonds-raw', unit: 1.2, handful: 28.35 }, { id: 'walnuts-raw', unit: 4.05, handful: 28.35 }]);
+
+  await db.exec('reset role');
+  await db.query(`update public.food_references set additional_portions = additional_portions || '{"steakMedium":190}',
+    kcal_per_100g = 300 where id = 'strip-steak-cooked'`);
+  const resizeMixed = () => rows(
+    "select public.masomeno_resize_preparations($1,'lunch','2020-11-25T03:10Z',null,$2,'[1.5,0.5]') as id",
+    [mixed.id, JSON.stringify(original)],
+  );
+  await as(bob);
+  assert.deepEqual(await resizeMixed(), [{ id: null }]);
+  assert.equal(await mixedSnapshot(), undefined);
+  await as(alice);
+  assert.deepEqual(await mixedSnapshot(), original);
+  assert.deepEqual(await resizeMixed(), [mixed]);
+  const edited = await mixedSnapshot();
+  assert.equal(edited[0].ingredients[0].grams, 270);
+  assert.equal(edited[0].kcal, 602.1);
+  assert.equal(edited[0].measureGrams, 180);
+  assert.equal(edited[1].kcal, 90.19);
 });

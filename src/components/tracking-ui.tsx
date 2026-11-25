@@ -6,7 +6,8 @@ import { useState, useTransition, type FormEvent } from 'react';
 import { useLocalizedValidation } from '@/i18n/form-validation';
 import type { MutationResult, TrackingAction } from '@/lib/tracking';
 import { Dialog } from './dialog';
-import { chartBounds, LineChart, type ChartPoint } from './line-chart';
+import { chartBounds, trendSegments, type ChartPoint } from '@/lib/chart-scale';
+import { LineChart } from './line-chart';
 
 export function AddRecordButton({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
   return <button className="button primary" type="button" onClick={onClick}><Plus size={19} aria-hidden />{children}</button>;
@@ -21,7 +22,7 @@ export function EditRecordButton({ onClick, label }: { onClick: () => void; labe
   );
 }
 
-export function RecordDialog({ title, close, save, remove, removePrompt, duplicateMessage, startWithRemoval = false, canSave = true, children }: {
+export function RecordDialog({ title, close, save, remove, removePrompt, duplicateMessage, startWithRemoval = false, canSave = true, footer, children }: {
   title: string;
   close: () => void;
   save: TrackingAction;
@@ -30,6 +31,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
   duplicateMessage?: string;
   startWithRemoval?: boolean;
   canSave?: boolean;
+  footer?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const t = useTranslations('tracking');
@@ -54,6 +56,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canSave || pending) return;
     const fields = new FormData(event.currentTarget);
     run(() => save(fields), event.currentTarget.closest('dialog'));
   }
@@ -63,10 +66,13 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
       <form onSubmit={submit} className="form-stack" hidden={confirm} {...validation}>
         <fieldset disabled={pending} className="form-stack">{children}</fieldset>
         {!confirm && error && <p role="alert">{error === 'duplicate' && duplicateMessage ? duplicateMessage : t(error)}</p>}
-        <div className="form-actions">
-          {remove && <button type="button" className="button secondary" disabled={pending}
-            onClick={() => { setError(null); setConfirm(true); }}>{app('remove')}</button>}
-          <button type="submit" className="button primary" disabled={pending || !canSave}>{pending ? t('saving') : app('save')}</button>
+        <div className={footer ? 'record-submit-with-summary' : undefined}>
+          {footer}
+          <div className="form-actions">
+            {remove && <button type="button" className="button secondary" disabled={pending}
+              onClick={() => { setError(null); setConfirm(true); }}>{app('remove')}</button>}
+            <button type="submit" className="button primary" disabled={pending || !canSave}>{pending ? t('saving') : app('save')}</button>
+          </div>
         </div>
       </form>
       {confirm && remove && (
@@ -90,18 +96,19 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
   );
 }
 
-export function RecordChart({ data, label, date, number, empty }: {
+export function RecordChart({ data, label, date, number, empty, padding }: {
   data: ChartPoint[];
   label: string;
   date: (day: string) => string;
   number: (value: number) => string;
   empty: string;
+  padding?: number;
 }) {
   const t = useTranslations('tracking');
   if (data.length < 2) return <p className="empty-state">{empty}</p>;
 
-  const { min, max } = chartBounds(data);
-  const hasTrend = data.filter((point) => point.trend !== undefined).length >= 2;
+  const { min, max } = chartBounds(data, padding);
+  const hasTrend = trendSegments(data).length > 0;
   return (
     <figure>
       <div className="progress-plot record-plot">
@@ -110,7 +117,7 @@ export function RecordChart({ data, label, date, number, empty }: {
             ? <><span /><span>{number(min)}</span><span /></>
             : <><span>{number(max)}</span><span>{number((max + min) / 2)}</span><span>{number(min)}</span></>}
         </div>
-        <LineChart data={data} label={label} />
+        <LineChart data={data} label={label} padding={padding} />
         <span className="record-date">{date(data[0].day)}</span>
         <span className="record-date record-date-end">{date(data[data.length - 1].day)}</span>
       </div>

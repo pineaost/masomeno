@@ -1,6 +1,6 @@
 'use client';
 
-import { Plus, RotateCcw, Search, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useFormatter, useTranslations } from 'next-intl';
@@ -9,15 +9,19 @@ import { EditRecordButton, RecordDialog } from '@/components/tracking-ui';
 import { localePath, type Locale } from '@/i18n/config';
 import { localizedText } from '@/i18n/localized-text';
 import { summarizeCalories } from '@/lib/calories';
-import { calendarDate, isCalendarDay, localFormDateTime } from '@/lib/dates';
+import { calendarDate, localFormDateTime } from '@/lib/dates';
 import {
-  foodAmount, matchesFood, maxMealLines, mealCalories, mealCategories, portionCalories, portionInGrams,
+  foodAmount, maxMealLines, mealCalories, mealCategories, portionCalories, portionInGrams, preferredFoodUnit, quickFoodAmounts,
   suggestedMealCategory, totalCalories, usableFood,
-  type CatalogFood, type FoodUnit, type MealComponent, type MealRecord, type Portion,
+  type CatalogFood, type FoodUnit, type MealComponent, type MealRecord,
 } from '@/lib/food';
-import { recordedPreparationLines, resolveRecipeDraft, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
+import type { MealDraftItem } from '@/lib/meal-composition';
+import { mealLabel } from '@/lib/meal-label';
+import { recordedPreparationLines, type RecipeForLog } from '@/lib/recipe-composition';
+import { DiaryCalendar } from './diary-calendar';
 import { deleteMeal, saveMeal } from './food-actions';
-import { RecipeComposer, recipeDraft } from './recipe-composer';
+import { CatalogPicker, HouseholdAmount, MealItems, mealItemValues, type ItemEdit } from './meal-items';
+import { QuickAmounts, recipeDraft } from './recipe-composer';
 
 type Draft = { key: number; food: CatalogFood; amount: string; unit: FoodUnit; original?: MealComponent };
 type Mode = 'new' | 'edit' | 'remove';
@@ -28,47 +32,6 @@ export type FoodLogData = {
   recipes: RecipeForLog[];
   zone: string;
 };
-
-const preparationOrder = { cooked: 0, prepared: 1, raw: 2 };
-
-function CatalogPicker({ catalog, locale, onSelect, onEstimate }: {
-  catalog: CatalogFood[]; locale: Locale; onSelect: (food: CatalogFood) => void; onEstimate: (food: CatalogFood) => void;
-}) {
-  const t = useTranslations('nutrition');
-  const [query, setQuery] = useState('');
-  const foodName = (food: CatalogFood) => localizedText(food.food.names, locale) ?? t('food');
-  const groups = new Map<string, { title: string; foods: CatalogFood[] }>();
-  for (const food of catalog.filter((item) => matchesFood(item, query)).sort((a, b) =>
-    foodName(a).localeCompare(foodName(b), locale) || Number(usableFood(b)) - Number(usableFood(a)) ||
-    preparationOrder[a.preparation] - preparationOrder[b.preparation])) {
-    const category = food.food.category;
-    const group = groups.get(category.id) ?? { title: localizedText(category.names, locale) ?? t('food'), foods: [] };
-    group.foods.push(food);
-    groups.set(category.id, group);
-  }
-
-  return <div className="food-catalog">
-    <label className="search-field">
-      <Search size={18} aria-hidden />
-      <input type="search" aria-label={t('search')} placeholder={t('search')} value={query}
-        onChange={(event) => setQuery(event.target.value)}
-        onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }} />
-    </label>
-    {groups.size ? <div className="food-results">
-      {[...groups].map(([id, { title, foods }]) => <section key={id}>
-        <h3>{title}</h3>
-        <ul>{foods.map((food) => <li key={food.id}>
-          <button type="button" onClick={() => (usableFood(food) ? onSelect : onEstimate)(food)}>
-            <span><strong>{foodName(food)}</strong>
-              <small>{localizedText(food.variant_names, locale) ?? t(food.preparation)}{food.is_estimate && <> · {t('estimate')}</>}</small>
-            </span>
-            <small>{usableFood(food) ? t(food.portion_unit ?? 'grams') : t('manual')}</small>
-          </button>
-        </li>)}</ul>
-      </section>)}
-    </div> : <p className="empty-state" role="status">{t(catalog.length ? 'noResults' : 'emptyCatalog')}</p>}
-  </div>;
-}
 
 function lineNutrition(line: Draft) {
   const amount = foodAmount(line.amount);
@@ -81,25 +44,11 @@ function lineNutrition(line: Draft) {
   return grams === null || kcal === null ? null : { grams, kcal: portionCalories(grams, kcal) };
 }
 
-function draftLines(meal: MealRecord | undefined, catalog: CatalogFood[], repeat = false): Draft[] {
+function draftLines(meal: MealRecord | undefined, catalog: CatalogFood[]): Draft[] {
   return (meal?.components ?? []).toSorted((a, b) => a.position - b.position).flatMap((component, key) => {
     const food = catalog.find((item) => item.id === component.food_reference_id);
-    if (!food) return [];
-    if (!repeat) return [{ key, food, amount: String(component.amount), unit: component.unit, original: component }];
-    if (portionInGrams(component.amount, component.unit, food) !== null) {
-      return [{ key, food, amount: String(component.amount), unit: component.unit }];
-    }
-    return [{ key, food, amount: String(Math.max(.01, Number((component.amount * component.grams_per_unit).toFixed(2)))), unit: 'g' }];
+    return food ? [{ key, food, amount: String(component.amount), unit: component.unit, original: component }] : [];
   });
-}
-
-function mealLabel(meal: MealRecord, catalog: CatalogFood[], locale: Locale, fallback: string) {
-  if (meal.name) return meal.name;
-  if (meal.preparations?.length) return meal.preparations.map(({ name }) => name).join(' + ');
-  const names = meal.components.toSorted((a, b) => a.position - b.position)
-    .map((line) => localizedText(catalog.find((item) => item.id === line.food_reference_id)?.food.names, locale))
-    .filter(Boolean).join(', ');
-  return names || fallback;
 }
 
 function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }: {
@@ -121,54 +70,89 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   const snapshots = meal?.preparations?.length ? meal.preparations : null;
   const [kind, setKind] = useState<Kind>(snapshots ? 'snapshot' : initialRecipe ? 'recipe'
     : meal?.manual_kcal != null || (!meal && !catalog.length) ? 'manual' : 'catalog');
+  const [items, setItems] = useState<MealDraftItem[]>([]);
+  const [itemEdit, setItemEdit] = useState<ItemEdit | null>(() => initialRecipe
+    ? { index: null, draft: { type: 'recipe', recipe: recipeDraft(initialRecipe) } } : null);
+  const [picking, setPicking] = useState(!initialRecipe);
   const [lines, setLines] = useState<Draft[]>(() => draftLines(meal, catalog));
   const [showCatalog, setShowCatalog] = useState(!lines.length);
+  const [activeLine, setActiveLine] = useState<number | null>(null);
   const [name, setName] = useState(meal?.name ?? '');
   const [kcal, setKcal] = useState(meal?.manual_kcal?.toString() ?? '');
-  const [drafts, setDrafts] = useState<RecipeDraft[]>(() => initialRecipe ? [recipeDraft(initialRecipe)] : []);
   const [recordedServings, setRecordedServings] = useState(() => snapshots?.map(({ servings }) => String(servings)) ?? []);
   const [estimate, setEstimate] = useState(false);
   const key = useRef(lines.length);
 
-  const nutrition = lines.map(lineNutrition);
-  const total = totalCalories(nutrition.flatMap((line) => line ? [line.kcal] : []));
-  const readyTotal = nutrition.length > 0 && nutrition.every((line) => line !== null);
-  const incompleteEdit = editing && meal?.components.some((component) =>
+  const composing = !editing && (kind === 'catalog' || kind === 'recipe');
+  const legacy = editing && kind === 'catalog';
+  const legacyValues = lines.map(lineNutrition);
+  const incompleteEdit = legacy && meal?.components.some((component) =>
     !catalog.some((food) => food.id === component.food_reference_id));
   const refs = new Map(catalog.map((ref) => [ref.id, ref]));
-  const groups = drafts.map((draft) => {
-    const recipe = recipes.find(({ id }) => id === draft.recipeId);
-    return recipe ? resolveRecipeDraft(recipe, draft, refs) : null;
-  });
-  const recipeLines = groups.flatMap((group) => group ?? []);
-  const recipeReady = recipeLines.length > 0 && recipeLines.length <= maxMealLines && groups.every(Boolean);
-  const portions = recordedServings.map((servings) => foodAmount(servings, 1000));
+  const values = items.map((item) => mealItemValues(item, refs, recipes));
+  const count = values.reduce((sum, item) => sum + (item?.count ?? 0), 0);
+  const portions = recordedServings.map((servings, index) => foodAmount(servings, snapshots?.[index]?.measureUnit ? 10000 : 1000));
   const archived = snapshots && portions.every((value): value is number => value !== null)
     ? recordedPreparationLines(snapshots, portions) : null;
-  const displayFields = kind === 'manual' || kind === 'snapshot' || (kind === 'catalog' && lines.length > 0) ||
-    (kind === 'recipe' && drafts.length > 0);
-  const canSave = kind === 'manual' || (kind === 'catalog' && readyTotal && !incompleteEdit) ||
-    (kind === 'recipe' && recipeReady) || (kind === 'snapshot' && !!archived);
+  const visibleValues = composing ? values : legacy ? legacyValues : archived ?? [];
+  const total = visibleValues.length ? totalCalories(visibleValues.flatMap((item) => item ? [item.kcal] : [])) : null;
+  const canSave = kind === 'manual' || (legacy && legacyValues.length > 0 && legacyValues.every(Boolean) && !incompleteEdit && activeLine === null) ||
+    (composing && !itemEdit && count > 0 && count <= maxMealLines && values.every(Boolean)) ||
+    (kind === 'snapshot' && !!archived && activeLine === null);
+  const displayFields = editing || kind === 'manual' || (composing && items.length > 0);
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
+  const amountText = (value: number, unit?: FoodUnit) => unit === 'g' ? `${number(value)} g`
+    : unit ? `${number(value)} ${t(unit).toLocaleLowerCase(locale)}` : recipeText('servings', { count: value });
 
-  function update(row: Draft) {
-    setLines((previous) => previous.map((line) => line.key === row.key ? row : line));
+  function changeKind(next: Kind) {
+    setKind(next);
+    if (next === 'catalog' || next === 'recipe') setPicking(true);
   }
 
-  function add(food: CatalogFood) {
+  function useManual(food: CatalogFood) {
+    setName((localizedText(food.food.names, locale) ?? '').slice(0, 120));
+    setKcal('');
+    setEstimate(true);
+    setKind('manual');
+  }
+
+  function addLegacy(food: CatalogFood) {
     if (lines.length >= maxMealLines) return;
-    const unit = food.portion_unit ?? 'g';
-    setLines([...lines, { key: key.current++, food, amount: unit === 'g' ? '' : '1', unit }]);
+    const unit = preferredFoodUnit(food);
+    const id = key.current++;
+    setLines([...lines, { key: id, food, amount: unit === 'g' ? '' : '1', unit }]);
+    setActiveLine(id);
     setShowCatalog(false);
   }
 
   function repeatMeal(record: MealRecord) {
-    const canRepeat = record.manual_kcal === null && record.components.every((line) =>
-      catalog.some((item) => item.id === line.food_reference_id && usableFood(item)));
-    const nextLines = canRepeat ? draftLines(record, catalog, true) : [];
-    setLines(nextLines);
-    key.current = nextLines.length;
-    setShowCatalog(!nextLines.length);
+    const canRepeat = record.manual_kcal === null && record.components.length > 0 &&
+      record.components.every(({ food_reference_id }) => {
+        const ref = refs.get(food_reference_id);
+        return ref && usableFood(ref);
+      });
+    const next: MealDraftItem[] = [];
+    if (canRepeat && record.preparations?.length) {
+      for (const group of record.preparations) {
+        for (const ingredient of group.ingredients) {
+          const ref = refs.get(ingredient.referenceId);
+          const unit = ref && group.measureUnit && portionInGrams(group.servings, group.measureUnit, ref) !== null ? group.measureUnit : 'g';
+          next.push({
+            type: 'food', referenceId: ingredient.referenceId, unit,
+            amount: String(unit === 'g' ? ingredient.grams : group.servings), role: group.role,
+          });
+        }
+      }
+    } else if (canRepeat) {
+      for (const { original, food, amount, unit } of draftLines(record, catalog)) {
+        const grams = original && portionCalories(original.amount * original.grams_per_unit, 100);
+        const usesGrams = grams !== undefined && portionInGrams(Number(amount), unit, food) === null;
+        next.push({ type: 'food', referenceId: food.id, unit: usesGrams ? 'g' : unit, amount: usesGrams ? String(grams) : amount });
+      }
+    }
+    setItems(next);
+    setItemEdit(null);
+    setPicking(!next.length);
     setKind(canRepeat ? 'catalog' : 'manual');
     setEstimate(record.manual_kcal === null && !canRepeat);
     setName((canRepeat && !record.name && !record.preparations?.length
@@ -177,18 +161,42 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
     setCategory(record.category);
   }
 
+  function changeArchived(index: number, value: string) {
+    setRecordedServings((previous) => previous.map((old, position) => position === index ? value : old));
+  }
+
+  const mealOptions = displayFields && <div className="food-field-pair">
+    <label>{tracking('dateTime')}
+      <input type="datetime-local" name="consumed_at" required min="1900-01-01T00:00" max={now}
+        value={instant} onChange={(event) => setInstant(event.target.value)} />
+    </label>
+    <label>{meals('category')}
+      <select name="category" value={category} onChange={(event) => {
+        const selected = mealCategories.find((value) => value === event.target.value);
+        if (selected) setCategory(selected);
+      }}>
+        {mealCategories.map((option) => <option value={option} key={option}>{meals(option)}</option>)}
+      </select>
+    </label>
+  </div>;
+
   return <RecordDialog title={mode === 'remove' ? app('remove') : editing ? meals('editMeal') : home('logMeal')}
     close={close} canSave={canSave}
+    footer={total === null ? undefined : <p className="food-total meal-total-bar" aria-live="polite">{t('mealTotal', { kcal: number(total) })}</p>}
     save={saveMeal.bind(null, locale, editing ? meal?.id ?? null : null, zone, snapshots)}
     remove={editing && meal ? deleteMeal.bind(null, locale, meal.id) : undefined}
     removePrompt={t('removeConfirm')} startWithRemoval={mode === 'remove'}>
     {!snapshots && <div className="periods food-kind" role="group" aria-label={t('entryType')}>
-      <button type="button" aria-pressed={kind === 'catalog'} onClick={() => setKind('catalog')}>{t('catalog')}</button>
-      {!editing && recipes.length > 0 && <button type="button" aria-pressed={kind === 'recipe'} onClick={() => setKind('recipe')}>{t('recipeMode')}</button>}
-      {!editing && recent.length > 0 && <button type="button" aria-pressed={kind === 'recent'} onClick={() => setKind('recent')}>{t('repeatTitle')}</button>}
-      <button type="button" aria-pressed={kind === 'manual'} onClick={() => setKind('manual')}>{t('manual')}</button>
+      <button type="button" aria-pressed={kind === 'catalog'} disabled={!!itemEdit || activeLine !== null}
+        onClick={() => changeKind('catalog')}>{t('catalog')}</button>
+      {!editing && recipes.length > 0 && <button type="button" aria-pressed={kind === 'recipe'} disabled={!!itemEdit}
+        onClick={() => changeKind('recipe')}>{t('recipeMode')}</button>}
+      {!editing && recent.length > 0 && <button type="button" aria-pressed={kind === 'recent'} disabled={!!itemEdit}
+        onClick={() => changeKind('recent')}>{t('repeatTitle')}</button>}
+      <button type="button" aria-pressed={kind === 'manual'} disabled={!!itemEdit || activeLine !== null}
+        onClick={() => changeKind('manual')}>{t('manual')}</button>
     </div>}
-    <input type="hidden" name="kind" value={kind} />
+    <input type="hidden" name="kind" value={composing ? 'composition' : kind} />
     {kind === 'recent' && <ul className="food-recent-picker">
       {recent.map((record) => <li key={record.id}>
         <button type="button" onClick={() => repeatMeal(record)}>
@@ -199,44 +207,54 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
         </button>
       </li>)}
     </ul>}
-    {kind === 'recipe' && <>
-      <RecipeComposer recipes={recipes} refs={refs} drafts={drafts} onChange={setDrafts} locale={locale} />
-      {recipeLines.length > maxMealLines && <p role="status">{recipeText('maxIngredients', { count: maxMealLines })}</p>}
-      {recipeReady && <p className="food-total" aria-live="polite">{t('mealTotal', {
-        kcal: number(totalCalories(recipeLines.map(({ referenceId, grams }) => portionCalories(grams, refs.get(referenceId)?.kcal_per_100g ?? 0)))),
-      })}</p>}
-    </>}
-    {kind === 'snapshot' && snapshots && <>
-      <div className="recipe-composer">{snapshots.map((group, index) => <section className="recipe-preparation" key={index}>
-        <div className="food-line-heading">
-          <h3>{group.name}</h3>
-          {snapshots.length > 1 && <button type="button" className="icon-button"
-            aria-label={recipeText(recordedServings[index] === '0' ? 'restorePreparation' : 'removePreparation', { recipe: group.name })}
-            onClick={() => setRecordedServings((values) => values.map((value, position) =>
-              position === index ? value === '0' ? String(group.servings) : '0' : value))}>
-            {recordedServings[index] === '0' ? <RotateCcw size={17} aria-hidden /> : <Trash2 size={17} aria-hidden />}
-          </button>}
-        </div>
-        {recordedServings[index] === '0' ? <input type="hidden" name="recordedServings" value="0" />
-          : <label>{t('servingCount')}
-            <input name="recordedServings" type="number" min=".01" max="1000" step=".01" inputMode="decimal"
-              value={recordedServings[index]} required onChange={(event) => setRecordedServings((values) =>
-                values.map((value, position) => position === index ? event.target.value : value))} />
-          </label>}
-        {portions[index] !== null && portions[index] > 0 && <details className="recipe-options">
-          <summary>{recipeText('ingredients')}</summary>
-          <ul className="recipe-preview">{group.ingredients.map((ingredient, position) => <li key={position}>
-            {localizedText(ingredient.names, locale) ?? t('food')} · ≈ {number(ingredient.grams * (portions[index] ?? 0) / group.servings)} g
-          </li>)}</ul>
-        </details>}
-      </section>)}</div>
-      {archived && <p className="food-total" aria-live="polite">{t('mealTotal', {
-        kcal: number(totalCalories(archived.map(({ kcal }) => kcal))),
-      })}</p>}
-      <label>{t('optionalName')}
-        <input name="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />
-      </label>
-    </>}
+    {composing && <MealItems key={kind} {...{ locale, catalog, recipes, refs, items, picking }}
+      source={kind} edit={itemEdit} onItems={setItems} onEdit={setItemEdit} onPick={setPicking} onEstimate={useManual} />}
+    {composing && count > maxMealLines && <p role="status">{recipeText('maxIngredients', { count: maxMealLines })}</p>}
+    {kind === 'snapshot' && snapshots && <ul className="meal-items-list">
+      {snapshots.map((group, index) => {
+        const portion = portions[index];
+        const removed = portion === 0;
+        const preview = portion && recordedPreparationLines([group], [portion]);
+        return <li key={index}>
+          <input type="hidden" name="recordedServings" value={recordedServings[index]} />
+          <div className="meal-item-row">
+            <span className="record-row-copy">
+              <strong>{group.name}</strong>
+              <small>{removed ? t('itemRemoved') : <>
+                {group.role && <>{t(group.role)} · </>}{amountText(portion ?? group.servings, group.measureUnit)}
+                {preview && <> · ≈ {number(totalCalories(preview.map(({ kcal }) => kcal)))} kcal</>}
+              </>}</small>
+            </span>
+            <div className="food-row-actions">
+              {!removed && <button type="button" className="icon-button" aria-label={t('editItem', { food: group.name })}
+                disabled={activeLine !== null} onClick={() => setActiveLine(index)}><Pencil size={17} aria-hidden /></button>}
+              {snapshots.length > 1 && <button type="button" className="icon-button" disabled={activeLine !== null}
+                aria-label={recipeText(removed ? 'restorePreparation' : 'removePreparation', { recipe: group.name })}
+                onClick={() => changeArchived(index, removed ? String(group.servings) : '0')}>
+                {removed ? <RotateCcw size={17} aria-hidden /> : <Trash2 size={17} aria-hidden />}
+              </button>}
+            </div>
+          </div>
+          {activeLine === index && <div className="meal-item-editor">
+            <div className="meal-quantity-controls">
+              <label>{group.measureUnit ? t(group.measureUnit === 'g' ? 'amountGrams' : group.measureUnit) : t('servingCount')}
+                <input type="number" min=".01" max={group.measureUnit ? '10000' : '1000'} step=".01" inputMode="decimal"
+                  value={recordedServings[index]} onChange={(event) => changeArchived(index, event.target.value)} />
+              </label>
+              <QuickAmounts values={group.measureUnit ? quickFoodAmounts(group.measureUnit) : [0.5, 1, 1.5, 2]}
+                selected={portion ?? 0} onChange={(value) => changeArchived(index, String(value))} />
+            </div>
+            {preview && <details className="recipe-options"><summary>{recipeText('ingredients')}</summary>
+              <ul className="recipe-preview">{group.ingredients.map((ingredient, position) => <li key={position}>
+                {localizedText(ingredient.names, locale) ?? t('food')} · ≈ {number(preview[position].grams)} g
+              </li>)}</ul>
+            </details>}
+            <button type="button" className="button primary compact-confirm" disabled={!preview}
+              onClick={() => setActiveLine(null)}><Check size={16} aria-hidden />{t('confirmItem')}</button>
+          </div>}
+        </li>;
+      })}
+    </ul>}
     {kind === 'manual' && <>
       {estimate && <p className="section-copy">{t('manualFallback')}</p>}
       <label>{meals('name')}
@@ -247,90 +265,53 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
           value={kcal} onChange={(event) => setKcal(event.target.value)} />
       </label>
     </>}
-    {kind === 'catalog' && <>
+    {legacy && <>
       {incompleteEdit && <p role="alert">{t('unavailable')}</p>}
-      {lines.length > 0 && <ul className="food-lines">{lines.map((line, index) => {
-        const measures = new Set<Portion>();
-        if (line.food.portion_unit) measures.add(line.food.portion_unit);
-        for (const unit of Object.keys(line.food.additional_portions ?? {}) as Portion[]) measures.add(unit);
-        if (line.original && line.original.unit !== 'g') measures.add(line.original.unit);
-        const result = nutrition[index];
+      <ul className="meal-items-list">{lines.map((line, index) => {
+        const result = legacyValues[index];
         const label = localizedText(line.food.food.names, locale) ?? t('food');
+        const change = (amount: string, unit: FoodUnit) =>
+          setLines((previous) => previous.map((item) => item.key === line.key ? { ...item, amount, unit } : item));
         return <li key={line.key}>
-          <div className="food-line-heading">
-            <div><strong>{label}</strong>
-              <small>{localizedText(line.food.variant_names, locale) ?? t(line.food.preparation)}{line.food.is_estimate && <> · {t('estimate')}</>}</small>
-            </div>
-            <button type="button" className="icon-button" aria-label={t('removeFood', { food: label })} onClick={() => {
-              setLines(lines.filter((item) => item.key !== line.key));
-              if (lines.length === 1) setShowCatalog(true);
-            }}><Trash2 size={17} aria-hidden /></button>
-          </div>
           <input type="hidden" name="reference" value={line.food.id} />
           <input type="hidden" name="component_id" value={line.original?.id ?? ''} />
-          <div className="food-field-pair">
-            <label>{t(measures.size ? 'amount' : 'amountGrams')}
-              <input name="amount" type="number" required min=".01" max="10000" step=".01" inputMode="decimal"
-                value={line.amount} onChange={(event) => update({ ...line, amount: event.target.value })} />
-            </label>
-            {measures.size ? <label>{t('unit')}
-              <select name="unit" value={line.unit} onChange={(event) => {
-                const unit = event.target.value as FoodUnit;
-                const amount = unit === 'g' ? (result ? numberForInput(result.grams) : '') : line.unit === 'g' ? '1' : line.amount;
-                update({ ...line, unit, amount });
-              }}>
-                {[...measures].map((unit) => <option key={unit} value={unit}>{t(unit)}</option>)}
-                <option value="g">{t('grams')}</option>
-              </select>
-            </label> : <input type="hidden" name="unit" value="g" />}
+          <input type="hidden" name="amount" value={line.amount} />
+          <input type="hidden" name="unit" value={line.unit} />
+          <div className="meal-item-row">
+            <span className="record-row-copy"><strong>{label}</strong>
+              {result && <small>{amountText(Number(line.amount), line.unit)} · ≈ {number(result.kcal)} kcal</small>}
+            </span>
+            <div className="food-row-actions">
+              <button type="button" className="icon-button" aria-label={t('editItem', { food: label })} disabled={activeLine !== null}
+                onClick={() => { setActiveLine(line.key); setShowCatalog(false); }}><Pencil size={17} aria-hidden /></button>
+              <button type="button" className="icon-button" aria-label={t('removeFood', { food: label })}
+                disabled={activeLine !== null && activeLine !== line.key} onClick={() => {
+                  setLines(lines.filter((item) => item.key !== line.key));
+                  setActiveLine(null);
+                  if (lines.length === 1) setShowCatalog(true);
+                }}><Trash2 size={17} aria-hidden /></button>
+            </div>
           </div>
-          {line.unit !== 'g' && <div className="periods food-portions" role="group" aria-label={t('quickAmounts')}>
-            {[['0.5', '½'], ['1', '1'], ['2', '2']].map(([amount, display]) =>
-              <button key={amount} type="button" aria-pressed={Number(line.amount) === Number(amount)}
-                aria-label={t('amountValue', { amount: number(Number(amount)) })}
-                onClick={() => update({ ...line, amount })}>{display}</button>)}
+          {activeLine === line.key && <div className="meal-item-editor">
+            <HouseholdAmount food={line.food} amount={line.amount} unit={line.unit} grams={result?.grams} historicalUnit={line.original?.unit}
+              onChange={change} />
+            <button type="button" className="button primary compact-confirm" disabled={!result}
+              onClick={() => setActiveLine(null)}><Check size={16} aria-hidden />{t('confirmItem')}</button>
           </div>}
-          <div className="food-line-heading food-line-note">
-            {result && <span>{line.unit !== 'g' && '≈ '}{t('lineEstimate', { grams: number(result.grams), kcal: number(result.kcal) })}</span>}
-            {line.food.source_url && <a className="text-link" href={line.food.source_url} target="_blank"
-              rel="noreferrer" aria-label={t('sourceFor', { food: label })}>{t('source')}</a>}
-          </div>
         </li>;
-      })}</ul>}
-      {showCatalog && lines.length < maxMealLines && <CatalogPicker catalog={catalog} locale={locale} onSelect={add}
-        onEstimate={(food) => {
-          setName((localizedText(food.food.names, locale) ?? '').slice(0, 120));
-          setKcal('');
-          setEstimate(true);
-          setKind('manual');
-        }} />}
-      {!showCatalog && lines.length < maxMealLines && <button type="button" className="button secondary"
-        onClick={() => setShowCatalog(true)}>{t('addFood')}</button>}
-      {readyTotal && <p className="food-total" aria-live="polite">{t('mealTotal', { kcal: number(total) })}</p>}
-      {(editing || name) && <label>{t('optionalName')}
-        <input name="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />
-      </label>}
+      })}</ul>
+      {activeLine === null && lines.length < maxMealLines && (showCatalog
+        ? <CatalogPicker catalog={catalog} locale={locale} onSelect={addLegacy} onEstimate={useManual} />
+        : <button type="button" className="button secondary add-meal-item" onClick={() => setShowCatalog(true)}>{t('addFood')}</button>)}
     </>}
-
-    {displayFields && <div className="food-field-pair">
-      <label>{tracking('dateTime')}
-        <input type="datetime-local" name="consumed_at" required min="1900-01-01T00:00" max={now}
-          value={instant} onChange={(event) => setInstant(event.target.value)} />
+    {kind !== 'manual' && displayFields ? <details className="recipe-options">
+      <summary>{meals(category)} · {format.dateTime(new Date((instant || initialTime) + 'Z'), { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })}</summary>
+      {mealOptions}
+      <label>{t('optionalName')}
+        <input name="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />
       </label>
-      <label>{meals('category')}
-        <select name="category" value={category} onChange={(event) => {
-          const selected = mealCategories.find((value) => value === event.target.value);
-          if (selected) setCategory(selected);
-        }}>
-          {mealCategories.map((option) => <option value={option} key={option}>{meals(option)}</option>)}
-        </select>
-      </label>
-    </div>}
+    </details> : mealOptions}
   </RecordDialog>;
-}
-
-function numberForInput(value: number) {
-  return String(Number(value.toFixed(2)));
 }
 
 export function useFoodDayRefresh(refreshAt?: string) {
@@ -397,14 +378,8 @@ export function FoodDiary({ locale, meals, recent, catalog, recipes, zone, date,
       <LogMealButton locale={locale} log={log} day={date} />
     </div>
     <div className="food-day-controls">
-      <label>{food('diaryDate')}
-        <input type="date" min="1900-01-01" max={today} value={date} onChange={(event) => {
-          const day = event.target.value;
-          if (isCalendarDay(day) && day >= '1900-01-01' && day <= today) {
-            router.push(localePath(locale, '/comidas') + (day === today ? '' : `?fecha=${day}`), { scroll: false });
-          }
-        }} />
-      </label>
+      <DiaryCalendar date={date} today={today} onSelect={(day) =>
+        router.push(localePath(locale, '/comidas') + (day === today ? '' : `?fecha=${day}`), { scroll: false })} />
       {date !== today && <Link className="text-link" href={localePath(locale, '/comidas')} prefetch={false}>{nav('home')}</Link>}
       <dl className="food-day-totals">
         <div><dt>{food('dayTotal')}</dt><dd>{number(consumed)} kcal</dd></div>

@@ -1,8 +1,9 @@
 'use client';
 
-import { Scale } from 'lucide-react';
+import { Scale, Trash2 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { Dialog } from '@/components/dialog';
 import { PageHeading } from '@/components/page-heading';
 import { AddRecordButton, EditRecordButton, RecordChart, RecordDialog } from '@/components/tracking-ui';
 import type { Locale } from '@/i18n/config';
@@ -33,6 +34,9 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
   const nav = useTranslations('nav');
   const format = useFormatter();
   const [months, setMonths] = useState(1);
+  const [showHistory, setShowHistory] = useState(false);
+  const [newestFirst, setNewestFirst] = useState(true);
+  const [removing, setRemoving] = useState(false);
   const [modal, setModal] = useState<WeightMeasurement | 'new' | 'goal' | null>(null);
   const [entryTime, setEntryTime] = useState(now);
   const summary = weightSummary(records);
@@ -40,8 +44,8 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
   const today = currentDateTime.slice(0, 10);
   const cutoff = months ? monthsBefore(today, months) : null;
   const localDay = (value: string) => localFormDateTime(value, timeZone).slice(0, 10);
-  const chart = weightPoints(records).filter((point) => cutoff === null || localDay(point.day) >= cutoff);
-  const visible = records.filter((record) => cutoff === null || localDay(record.measured_at) >= cutoff);
+  const chart = weightPoints(cutoff === null ? records : records.filter((record) => localDay(record.measured_at) >= cutoff), timeZone);
+  const recent = records.slice(-3).reverse();
   const date = (value: string) => format.dateTime(new Date(value), { timeZone, day: 'numeric', month: 'short', year: 'numeric' });
   const dateTime = (value: string) => format.dateTime(new Date(value), { timeZone, dateStyle: 'medium', timeStyle: 'short' });
   const number = (kg: number, signed = false) => format.number(displayWeight(kg, unit), {
@@ -52,7 +56,26 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
     { key: 'target', kg: goal }, { key: 'change', kg: summary?.change },
   ] as const;
   const entry = typeof modal === 'object' ? modal : null;
-  const close = () => setModal(null);
+  const close = () => { setModal(null); setRemoving(false); };
+
+  function historyRows(items: WeightMeasurement[], full = false) {
+    return <ul className="history weight-history">{items.map((record) => {
+      const label = dateTime(record.measured_at);
+      return <li key={record.id}>
+        <span className="category-icon"><Scale size={18} aria-hidden /></span>
+        <div className="record-row-copy">
+          <time dateTime={record.measured_at}>{label}</time>
+          {record.condition && <small>{record.condition}</small>}
+        </div>
+        <strong>{number(record.weight_kg)} {unit}</strong>
+        <div className="food-row-actions">
+          <EditRecordButton label={label} onClick={() => setModal(record)} />
+          {full && <button className="icon-button" type="button" aria-label={t('removeEntry', { date: label })}
+            onClick={() => { setModal(record); setRemoving(true); }}><Trash2 size={17} aria-hidden /></button>}
+        </div>
+      </li>;
+    })}</ul>;
+  }
 
   return (
     <>
@@ -85,26 +108,24 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
             ))}
           </div>
         </div>
-        <RecordChart data={chart} label={tracking('weightChart')} date={date} number={(kg) => `${number(kg)} ${unit}`} empty={t('emptyTrend')} />
+        <RecordChart data={chart} label={tracking('weightChart')} date={date} number={(kg) => `${number(kg)} ${unit}`} empty={t('emptyTrend')} padding={5} />
       </section>
       <section className="panel section-panel">
-        <div className="panel-heading"><h2>{t('history')}</h2></div>
-        {visible.length ? (
-          <ul className="history">
-            {visible.toReversed().map((record) => (
-              <li key={record.id}>
-                <span className="category-icon"><Scale size={18} aria-hidden /></span>
-                <div className="record-row-copy">
-                  <time dateTime={record.measured_at}>{dateTime(record.measured_at)}</time>
-                  {record.condition && <small>{record.condition}</small>}
-                </div>
-                <strong>{number(record.weight_kg)} {unit}</strong>
-                <EditRecordButton label={dateTime(record.measured_at)} onClick={() => setModal(record)} />
-              </li>
-            ))}
-          </ul>
-        ) : <p className="empty-state">{records.length ? t('emptyHistory') : tracking('noWeights')}</p>}
+        <div className="panel-heading">
+          <h2>{t('history')}</h2>
+          {records.length > 0 && <button className="text-link" type="button" onClick={() => setShowHistory(true)}>{t('fullHistory')}</button>}
+        </div>
+        {recent.length ? historyRows(recent) : <p className="empty-state">{tracking('noWeights')}</p>}
       </section>
+      {showHistory && <Dialog title={t('fullHistory')} onClose={() => setShowHistory(false)}>
+        {records.length ? <>
+          <div className="periods" role="group" aria-label={t('sortDate')}>
+            <button type="button" aria-pressed={newestFirst} onClick={() => setNewestFirst(true)}>{t('newest')}</button>
+            <button type="button" aria-pressed={!newestFirst} onClick={() => setNewestFirst(false)}>{t('oldest')}</button>
+          </div>
+          {historyRows(newestFirst ? records.toReversed() : records, true)}
+        </> : <p className="empty-state">{tracking('noWeights')}</p>}
+      </Dialog>}
       {modal === 'goal' && (
         <RecordDialog title={t('target')} close={close} save={saveWeightGoal.bind(null, locale, unit)}>
           <label>
@@ -118,7 +139,8 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
       {(modal === 'new' || entry) && (
         <RecordDialog title={entry ? tracking('editWeight') : home('logWeight')} close={close}
           save={saveWeighIn.bind(null, locale, entry?.id ?? null, unit, timeZone)}
-          remove={entry ? deleteWeighIn.bind(null, locale, entry.id) : undefined}>
+          remove={entry ? deleteWeighIn.bind(null, locale, entry.id) : undefined}
+          removePrompt={t('removeConfirm')} startWithRemoval={removing}>
           <label>
             {t('weightInput', { unit })}
             <input name="weight" type="number" inputMode="decimal" min="0.001" step="any" required

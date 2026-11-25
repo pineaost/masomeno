@@ -1,9 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  localFoodDay, matchesFood, mealCalories, parseCalorieGoal, parseMeal, portionCalories, portionInGrams, suggestedMealCategory, totalCalories,
+  localFoodDay, matchesFood, mealCalories, parseCalorieGoal, parseMeal, portionCalories, portionInGrams, preferredFoodUnit,
+  quickFoodAmounts, suggestedMealCategory, totalCalories,
 } from '../src/lib/food.ts';
 import { readTimeZone } from '../src/lib/time-zones.ts';
+import { foodDraftNutrition, foodPreparation, parseMealItems } from '../src/lib/meal-composition.ts';
+import { resolveRecipeDraft } from '../src/lib/recipe-composition.ts';
 
 const zone = 'America/Argentina/Buenos_Aires';
 const now = new Date('2026-11-24T12:00:00Z');
@@ -40,6 +43,53 @@ test('busca nombres traducidos y sinónimos con y sin acentos', () => {
   assert.equal(matchesFood(item, 'espagueti'), true);
   assert.equal(matchesFood(item, 'pasta di grano'), true);
   assert.equal(matchesFood(item, 'pasta seca'), false);
+});
+
+test('busca grupos de alimentos con el vocabulario del catálogo y de la categoría', () => {
+  const search = (names, synonyms, category) => ({ food: { names, synonyms, category: { names: category } } });
+  const salmon = search({ es: 'Salmón', en: 'Salmon', it: 'Salmone' }, ['pescado', 'fish', 'pesce'], {});
+  const carrot = search({ es: 'Zanahoria', en: 'Carrot', it: 'Carota' }, [], { es: 'Verduras', en: 'Vegetables', it: 'Verdure' });
+  for (const term of ['pescado', 'fish', 'pesce', 'PESCADO salmón']) assert.equal(matchesFood(salmon, term), true);
+  for (const term of ['verduras', 'vegetables', 'verdure']) assert.equal(matchesFood(carrot, term), true);
+  assert.equal(matchesFood(salmon, 'verduras'), false);
+});
+
+test('combina un bife mediano y media ensalada sin repetir el principal de la receta', () => {
+  const recipeId = '94170000-0000-4000-8000-000000000009';
+  const steak = { id: 'strip', validation: 'verified', kcal_per_100g: 223, portion_unit: 'steak', portion_grams: 119,
+    additional_portions: { steakMedium: 180 } };
+  const carrot = { id: 'carrot', validation: 'verified', kcal_per_100g: 41 };
+  const egg = { id: 'egg', validation: 'verified', kcal_per_100g: 155 };
+  const draft = { type: 'food', referenceId: 'strip', amount: '1', unit: 'steakMedium', role: 'main' };
+  const side = { type: 'recipe', role: 'side',
+    recipe: { recipeId, part: 'salad', servings: 0.5, choices: {}, quantities: {}, weights: { 2: 60 } } };
+  const recipe = { id: recipeId, base_servings: 1, alternatives: [],
+    parts: [{ id: 'salad', positions: [2, 3] }], ingredients: [
+      { position: 1, food_reference_id: 'strip', grams: 180 },
+      { position: 2, food_reference_id: 'carrot', grams: 100 },
+      { position: 3, food_reference_id: 'egg', grams: 50 },
+    ] };
+  const refs = new Map([steak, carrot, egg].map((ref) => [ref.id, ref]));
+  assert.deepEqual(parseMealItems(JSON.stringify([draft, side])), [draft, side]);
+  assert.equal(parseMealItems(JSON.stringify([{ ...draft, unit: 'bowl' }])), null);
+  assert.equal(parseMealItems(JSON.stringify([{ ...draft, role: 'invalid' }])), null);
+  assert.equal(parseMealItems(JSON.stringify([{ ...draft, amount: '1.123' }])), null);
+  assert.equal(preferredFoodUnit(steak), 'steakMedium');
+  assert.deepEqual(quickFoodAmounts('steakMedium'), [0.5, 1, 1.5, 2]);
+  assert.deepEqual(quickFoodAmounts('egg'), [1, 2, 3]);
+  assert.deepEqual(quickFoodAmounts('tablespoon'), [0.5, 1, 2]);
+  assert.deepEqual(quickFoodAmounts('g'), []);
+  assert.deepEqual(foodDraftNutrition(draft, steak), { amount: 1, grams: 180, kcal: 401.4 });
+  assert.deepEqual(foodPreparation(draft, steak, 'Bife'), {
+    name: 'Bife', servings: 1, measureUnit: 'steakMedium', ingredients: [{ referenceId: 'strip', grams: 180 }],
+  });
+  const lines = resolveRecipeDraft(recipe, side.recipe, refs);
+  assert.deepEqual(lines, [{ referenceId: 'carrot', grams: 60 }, { referenceId: 'egg', grams: 25 }]);
+  assert.equal(totalCalories([401.4, ...lines.map(({ referenceId, grams }) => portionCalories(grams, refs.get(referenceId).kcal_per_100g))]), 464.75);
+  assert.equal(resolveRecipeDraft(recipe, { ...side.recipe, part: 'missing' }, refs), null);
+  assert.equal(resolveRecipeDraft(recipe, { ...side.recipe, weights: { 1: 13 } }, refs), null);
+  assert.equal(portionInGrams(0.5, 'handful', { portion_unit: 'walnut', portion_grams: 4.05, additional_portions: { handful: 28.35 } }), 14.175);
+  assert.equal(portionInGrams(2, 'walnut', { portion_unit: 'walnut', portion_grams: 4.05 }), 8.1);
 });
 
 test('calcula el día local y sus límites aunque cambie el horario de verano', () => {

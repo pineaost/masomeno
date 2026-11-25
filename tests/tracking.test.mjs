@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { chartBounds, trendSegments } from '../src/lib/chart-scale.ts';
 import { localFormDateTime } from '../src/lib/dates.ts';
 import {
   measuredInstant, parseExerciseName, parseStrength, parseTreadmill, parseWeighIn, parseWeightGoal,
@@ -57,11 +58,27 @@ test('el resumen de peso y la media móvil se calculan sobre registros observado
   }));
   assert.deepEqual(weightSummary(observations), { first: 80, current: 78, change: -2 });
   assert.equal(weightSummary([]), null);
-  assert.ok(weightPoints(observations.slice(0, 4)).every(({ trend }) => trend === undefined));
+  assert.ok(weightPoints(observations.slice(0, 3)).every(({ trend }) => trend === undefined));
   const chart = weightPoints(observations);
   assert.equal(chart.length, observations.length);
-  assert.deepEqual(chart.map(({ trend }) => trend), [undefined, undefined, 81, 80, 78]);
+  assert.deepEqual(chart.map(({ trend }) => trend), [undefined, undefined, 81, 80, 79.6]);
   assert.deepEqual(chart.map(({ day }) => day), observations.map(({ measured_at }) => measured_at));
+});
+
+test('la tendencia pesa cada día local por igual y el gráfico conserva márgenes legibles', () => {
+  const observations = [
+    ['2026-11-02T01:00:00Z', 82], ['2026-11-01T13:00:00Z', 80], ['2026-11-02T15:00:00Z', 79],
+    ['2026-11-03T15:00:00Z', 77], ['2026-11-04T15:00:00Z', 75], ['2026-11-22T15:00:00Z', 70],
+  ].map(([measured_at, weight_kg]) => ({ measured_at, weight_kg }));
+  const points = weightPoints(observations, zone);
+  assert.deepEqual(points.map(({ value }) => value), [80, 82, 79, 77, 75, 70]);
+  assert.deepEqual(points.map(({ trend }) => trend), [undefined, undefined, undefined, 79, 78, undefined]);
+  assert.deepEqual(trendSegments(points), [[3, 4]]);
+  assert.deepEqual(chartBounds(points, 5), { min: 65, max: 87 });
+  assert.deepEqual(chartBounds([{ value: 9 }, { value: 10 }]), { min: 8.5, max: 10.5 });
+  assert.deepEqual(chartBounds([{ value: 0 }, { value: 0 }]), { min: 0, max: 0.1 });
+  assert.equal(parseWeighIn(form({ weight: '72', measured_at: '2026-11-01T01:30', condition: '' }),
+    'kg', 'America/New_York', now, '2026-11-01T06:30:31Z').measured_at, '2026-11-01T06:30:31Z');
 });
 
 test('la carga acepta repeticiones opcionales y permite quitar un valor anterior', () => {

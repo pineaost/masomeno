@@ -35,9 +35,16 @@ export async function saveWeighIn(locale: Locale, id: string | null, unit: Weigh
   const session = await writeSession(locale);
   if (!session) return 'unavailable';
   if (session.weight_unit !== unit || session.timeZone !== zone) return 'conflict';
-  const record = parseWeighIn(fields, session.weight_unit, session.timeZone, new Date());
-  if (!record) return 'invalid';
   const table = session.supabase.from('weight_measurements');
+  let existingTime: string | undefined;
+  if (id !== null) {
+    const { data, error } = await table.select('measured_at').eq('user_id', session.id).eq('id', id).maybeSingle();
+    if (error) return 'unavailable';
+    if (!data) return 'conflict';
+    existingTime = data.measured_at;
+  }
+  const record = parseWeighIn(fields, session.weight_unit, session.timeZone, new Date(), existingTime);
+  if (!record) return 'invalid';
   const write = id === null ? table.insert(record) : table.update(record).eq('user_id', session.id).eq('id', id);
   return finish(locale, weightPaths, await write.select('id').maybeSingle());
 }

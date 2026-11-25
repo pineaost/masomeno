@@ -7,7 +7,10 @@ import type { PreparationSnapshot } from './recipe-composition.ts';
 export const mealCategories = ['firstMeal', 'lunch', 'snack', 'dinner', 'other'] as const;
 export type MealCategory = (typeof mealCategories)[number];
 export type FoodNames = Record<Locale, string>;
-const portionUnits = ['egg', 'banana', 'bananaSmall', 'bananaLarge', 'tablespoon', 'slice', 'unit', 'piece', 'cup', 'steak'] as const;
+const portionUnits = [
+  'egg', 'banana', 'bananaSmall', 'bananaLarge', 'tablespoon', 'slice', 'unit', 'piece', 'cup', 'steak',
+  'steakMedium', 'almond', 'walnut', 'handful', 'serving',
+] as const;
 export type Portion = (typeof portionUnits)[number];
 export type FoodUnit = 'g' | Portion;
 export type FoodReference = {
@@ -61,16 +64,31 @@ function normalize(value: string) {
 
 export function matchesFood(item: CatalogFood, query: string) {
   const variants = item.variant_names ? Object.values(item.variant_names) : [];
-  return matchesFoodName({ names: item.food.names, synonyms: [...item.food.synonyms, ...variants] }, query);
+  return matchesFoodName({ ...item.food, synonyms: [...item.food.synonyms, ...variants] }, query);
 }
 
-export function matchesFoodName(food: { names: FoodNames; synonyms: string[] }, query: string) {
-  const searchable = normalize([...Object.values(food.names), ...food.synonyms].join(' '));
+export function matchesFoodName(food: { names: FoodNames; synonyms: string[]; category?: { names: FoodNames } }, query: string) {
+  const categoryNames = food.category ? Object.values(food.category.names) : [];
+  const searchable = normalize([...Object.values(food.names), ...food.synonyms, ...categoryNames].join(' '));
   return normalize(query.trim()).split(/\s+/).every((word) => searchable.includes(word));
 }
 
 export function usableFood(food: FoodReference): food is FoodReference & { kcal_per_100g: number } {
   return food.validation !== 'pending' && food.kcal_per_100g !== null;
+}
+
+export function isFoodUnit(value: unknown): value is FoodUnit {
+  return value === 'g' || portionUnits.some((unit) => unit === value);
+}
+
+export function preferredFoodUnit(food: FoodReference): FoodUnit {
+  return food.additional_portions?.steakMedium ? 'steakMedium' : food.portion_unit ?? 'g';
+}
+
+export function quickFoodAmounts(unit: FoodUnit) {
+  if (unit === 'g') return [];
+  if (['egg', 'banana', 'bananaSmall', 'bananaLarge', 'almond', 'walnut', 'unit'].includes(unit)) return [1, 2, 3];
+  return unit === 'tablespoon' ? [0.5, 1, 2] : [0.5, 1, 1.5, 2];
 }
 
 export function portionInGrams(amount: number, unit: FoodUnit,

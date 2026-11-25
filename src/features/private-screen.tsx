@@ -1,11 +1,13 @@
 import { CalendarDays } from 'lucide-react';
 import { notFound } from 'next/navigation';
-import { getTranslations, setRequestLocale } from 'next-intl/server';
+import { getFormatter, getTranslations, setRequestLocale } from 'next-intl/server';
 import { Suspense } from 'react';
 import { PageHeading } from '@/components/page-heading';
 import { isLocale, type Locale } from '@/i18n/config';
 import { demoMode, requireAccount } from '@/lib/account';
+import { mealCalories } from '@/lib/food';
 import { loadFoodDay } from '@/lib/food-data';
+import { mealLabel } from '@/lib/meal-label';
 import { CaloriesCard } from './calories-card';
 import { Food, FoodNavigation } from './food';
 import { FoodDiary } from './food-diary';
@@ -25,8 +27,23 @@ function isFood(screen: Screen): screen is FoodSection {
 
 async function TodayCalories({ locale }: { locale: Locale }) {
   const data = await loadFoodDay(locale);
-  return <CaloriesCard live state={data?.state ?? 'unavailable'} goal={data?.kcal ?? null} consumed={data?.consumed ?? 0}
-    log={data ?? undefined} refreshAt={data?.refreshAt} />;
+  const summary = data?.state === 'ready' && data.meals.length > 0 ? data : null;
+  const [t, format] = await Promise.all([getTranslations({ locale }), getFormatter({ locale })]);
+  return <>
+    <CaloriesCard live state={data?.state ?? 'unavailable'} goal={data?.kcal ?? null} consumed={data?.consumed ?? 0}
+      log={data ?? undefined} refreshAt={data?.refreshAt} />
+    {summary && <section className="panel section-panel today-meals">
+      <h2>{t('home.dailyMeals')}</h2>
+      <ul>{summary.meals.toReversed().map((meal) => {
+        const category = t(`meals.${meal.category}`);
+        return <li key={meal.id}>
+          <span className="today-meal-category">{category}</span>
+          <strong>{mealLabel(meal, summary.catalog, locale, category)}</strong>
+          <span className="today-meal-kcal">≈ {format.number(mealCalories(meal), { maximumFractionDigits: 0 })} kcal</span>
+        </li>;
+      })}</ul>
+    </section>}
+  </>;
 }
 
 async function DiaryContent({ locale, date }: { locale: Locale; date?: string }) {

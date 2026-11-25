@@ -56,8 +56,8 @@ export async function loadFoodRegistration(session: Session) {
     zone: session.zone, catalog: catalogItems, recent: recent.data ?? [],
     recipes: recipes.errors.some(Boolean) ? [] : recipes.data
       .filter(({ ingredients, base_servings }) => recipeCaloriesPerServing(ingredients, base_servings, refs) !== null)
-      .map(({ id, names, base_servings, ingredients, alternatives, variants, purchase_unit }) =>
-        ({ id, names, base_servings, ingredients, alternatives, variants, purchase_unit })),
+      .map(({ id, names, base_servings, ingredients, alternatives, variants, purchase_unit, parts }) =>
+        ({ id, names, base_servings, ingredients, alternatives, variants, purchase_unit, parts })),
     catalogRecipes: recipes.data,
     errors: [catalog.error, ...recipes.errors],
   };

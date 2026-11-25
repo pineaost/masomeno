@@ -54,10 +54,15 @@ Los identificadores, las preparaciones y los valores de la columna correspondien
 
 - La primera tanda agregó zapallito redondo crudo, jamón en fetas, nalga cruda, papa y batata crudas. La grasa del zapallito queda sin cuantificar. La pechuga se calcula con la referencia de carne cocida sin piel y una pieza orientativa de 86 g, equivalente a media pechuga deshuesada. Las tortillas usan tamaños genéricos de trigo o maíz. [ARGENFOODS 117](https://www.argenfood.unlu.edu.ar/Tablas/Codigo/117.htm) · [USDA pechuga](https://fdc.nal.usda.gov/food-details/171477/nutrients) · [USDA FoodData Central](https://fdc.nal.usda.gov/download-datasets/)
 
+## Medidas para el registro cotidiano
+
+- Una almendra equivale a 1,2 g y una nuez entera sin cáscara a 4,05 g. El puñado orientativo se aproxima a una onza de 28,35 g. [USDA almendras](https://fdc.nal.usda.gov/food-details/170567/nutrients) · [USDA nueces](https://fdc.nal.usda.gov/food-details/170187/nutrients)
+- El bife mediano de la app corresponde a los 180 g cocidos de la receta base. El bife de la fuente pesa 119 g y sigue disponible. La porción de lentejas de la app corresponde a media taza cocida, 99 g. [USDA bife](https://fdc.nal.usda.gov/food-details/170239/nutrients) · [USDA lentejas](https://fdc.nal.usda.gov/food-details/172421/nutrients)
+
 ## Composición y registro
 
 `recipe_ingredients` conserva el alimento genérico y admite referencia, gramos, posición y opcionalidad. `recipe_ingredient_alternatives` define sustitutos con referencia y peso propios. El Recetario deriva la energía y los macronutrientes conocidos de los ingredientes de la composición base. Un nutriente sin valor específico se muestra con un guion. Cambiar porciones, opciones y acompañamientos recalcula el consumo antes de guardarlo. Las cuatro intensidades siguen siendo orientativas.
 
-`masomeno_save_preparations` guarda una o más preparaciones bajo la comida de la cuenta y reutiliza el cálculo del diario. Cada preparación conserva nombre, porciones, cantidades, fuente, nutrientes y calorías al momento del registro. El editor ajusta porciones o retira preparaciones usando la composición y las densidades guardadas. Los cambios en el catálogo dejan intacto el historial.
+`masomeno_save_preparations` guarda una o más preparaciones bajo la comida de la cuenta y reutiliza el cálculo del diario. Cada preparación conserva nombre, porciones, cantidades, fuente, nutrientes y calorías al momento del registro. Una entrada de Biblioteca también conserva la medida y su equivalencia cuando se guarda con otras preparaciones. Las partes reutilizan los pesos y referencias de las posiciones seleccionadas de la receta original. El editor ajusta porciones o retira preparaciones usando la composición y las densidades guardadas. Los cambios en el catálogo dejan intacto el historial.
 
 La heladera prioriza recetas con los ingredientes base o sus sustitutos disponibles y conserva visible la lista completa. Si queda una opción sin marcar, la falta sigue sin confirmar. El campo `matched_food_id` deja preparada la asociación futura de ingredientes personales sin asignar nutrición al texto ingresado. [Familias candidatas](RECIPE_CANDIDATES.md)

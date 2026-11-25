@@ -28,8 +28,8 @@ export function Progress() {
   const limit = months ? monthsBefore(demoDay, months) : null;
   const data = weights.filter((entry) => !limit || entry.day >= limit);
   const values = data.map(({ kg }) => kg);
-  const max = Math.max(...values);
-  const min = Math.min(...values);
+  const max = Math.max(...values) + 5;
+  const min = Math.min(...values) - 5;
   const stats = [
     { key: 'initial', kg: initial },
     { key: 'current', kg: current },
@@ -71,7 +71,7 @@ export function Progress() {
               <div className="chart-axis" aria-hidden>
                 {[max, (max + min) / 2, min].map((kg, index) => <span key={index}>{weightText(kg)}</span>)}
               </div>
-              <LineChart data={data.map(({ day, kg }) => ({ day, value: kg }))} label={t('chartLabel')} />
+              <LineChart data={data.map(({ day, kg }) => ({ day, value: kg }))} label={t('chartLabel')} padding={5} />
             </div>
             <figcaption className="progress-caption">
               <span>{dateText(data[0].day)}</span><span>{dateText(data[data.length - 1].day)}</span>

@@ -51,7 +51,7 @@ export function FridgeControls({ locale, id, name, status }: {
 }
 
 type Ingredient = { id: string; name: string; category: { id: string; name: string }; match: boolean; personal: boolean };
-const pageSize = 8;
+
 
 export function Fridge({ locale, foods, selections, personal, personalState }: {
   locale: Locale;
@@ -63,7 +63,7 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
   const t = useTranslations('fridge');
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
-  const [limit, setLimit] = useState(pageSize);
+
   const [availableOnly, setAvailableOnly] = useState(false);
   const [editing, setEditing] = useState<{ id: string | null; name: string } | null>(null);
   const [busy, startTransition] = useTransition();
@@ -113,10 +113,10 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
       <label className="search-field">
         <Search size={18} aria-hidden />
         <input type="search" aria-label={t('search')} placeholder={t('search')} value={query}
-          onChange={(event) => { setQuery(event.target.value); setLimit(pageSize); }} />
+          onChange={(event) => setQuery(event.target.value)} />
       </label>
       <select className="fridge-filter" value={category} aria-label={t('category')}
-        onChange={(event) => { setCategory(event.target.value); setLimit(pageSize); }}>
+        onChange={(event) => setCategory(event.target.value)}>
         <option value="">{t('allCategories')}</option>
         {[...categories].sort(([, a], [, b]) => a.localeCompare(b, locale)).map(([id, name]) => <option key={id} value={id}>{name}</option>)}
         {personalState === 'ready' && <option value="personal">{t('personal')}</option>}
@@ -126,12 +126,12 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
     <div className="fridge-summary">
       <small role="status">{t('availableCount', { count: available.length })}</small>
       <div className="periods" role="group" aria-label={t('statusFilter')}>
-        <button type="button" aria-pressed={!availableOnly} onClick={() => { setAvailableOnly(false); setLimit(pageSize); }}>{t('allFoods')}</button>
-        <button type="button" aria-pressed={availableOnly} onClick={() => { setAvailableOnly(true); setLimit(pageSize); }}>{t('onlyAvailable')}</button>
+        <button type="button" aria-pressed={!availableOnly} onClick={() => setAvailableOnly(false)}>{t('allFoods')}</button>
+        <button type="button" aria-pressed={availableOnly} onClick={() => setAvailableOnly(true)}>{t('onlyAvailable')}</button>
       </div>
     </div>
     {results.length ? <ul className="fridge-results">
-      {results.slice(0, limit).map((item) => {
+      {results.map((item) => {
         const status = marked.get(item.id) ?? null;
         return <li key={item.id}>
           <div className="fridge-result">
@@ -148,8 +148,7 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
         </li>;
       })}
     </ul> : <p className="empty-state" role="status">{t(availableOnly && !key && !category ? 'noneAvailable' : 'noResults')}</p>}
-    {results.length > limit &&
-      <button className="button secondary" type="button" onClick={() => setLimit(limit + pageSize)}>{t('more')}</button>}
+
     {key && !matches.length && (personalState === 'ready'
       ? <button className="button secondary" type="button" disabled={busy}
         onClick={() => setEditing({ id: null, name: query.trim().slice(0, 80) })}><Plus size={18} aria-hidden />{t('addIngredient')}</button>

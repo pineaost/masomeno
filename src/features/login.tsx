@@ -73,11 +73,11 @@ export function Login({ locale, mode, initialNotice, enabled, submit }: {
   return (
     <main className="login-screen">
       <section className="panel login-panel" aria-labelledby="login-title">
+        <p className="login-tagline">{app('tagline')}</p>
         <div className="wordmark">
           <Image src={brandIcons.small.src} width={38} height={38} alt="" />
-          <span>{brandName}<span className="wordmark-dot" aria-hidden>.</span></span>
+          <span>{brandName}</span>
         </div>
-        <p className="login-tagline">{app('tagline')}</p>
         <h1 id="login-title">{t(titles[mode])}</h1>
         {notice && <p className="auth-notice" role={notice === 'passwordUpdated' ? 'status' : 'alert'}>{t(notice)}</p>}
         {mode === 'login' && (

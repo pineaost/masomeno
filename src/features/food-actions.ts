@@ -6,10 +6,11 @@ import { demoMode } from '@/lib/account';
 import { readLocale } from '@/lib/auth-paths';
 import { localizedText } from '@/i18n/localized-text';
 import { maxMealLines, parseCalorieGoal, parseMeal, parseMealDetails } from '@/lib/food';
+import { foodPreparation, parseMealItems, type MealDraftItem } from '@/lib/meal-composition';
 import { foodSession } from '@/lib/food-data';
 import { ingredientNameKey, parsePersonalIngredient, type FridgeStatus } from '@/lib/recipe-catalog';
-import { parseRecipeDrafts, parseRecordedPortions, recipeVariation, resolveRecipeDraft,
-  type PreparationSnapshot } from '@/lib/recipe-composition';
+import { draftRecipeName, parseRecipeDrafts, parseRecordedPortions, resolveRecipeDraft,
+  type PreparationInput, type PreparationSnapshot } from '@/lib/recipe-composition';
 import { readFoodCatalog, readRecipeCatalog } from '@/lib/recipe-queries';
 import type { MutationResult } from '@/lib/tracking';
 import { isTrackingId } from '@/lib/tracking-fields';
@@ -44,30 +45,42 @@ export async function saveMeal(
   const kind = fields.get('kind');
   if (kind === 'snapshot' && id && expected) {
     const meal = parseMealDetails(fields, zone, now, existingTime);
-    const portions = parseRecordedPortions(fields);
+    const portions = parseRecordedPortions(fields, expected);
     if (!meal || !portions || portions.length !== expected.length) return 'invalid';
     return finish(locale, await session.supabase.rpc('masomeno_resize_preparations', {
       meal_id: id, meal_category: meal.category, meal_time: meal.consumedAt, meal_name: meal.name,
       expected_groups: expected, portions,
     }), ['', '/comidas']);
   }
-  if (kind === 'recipe' && id === null) {
+  if ((kind === 'composition' || kind === 'recipe') && id === null) {
     const meal = parseMealDetails(fields, zone, now);
-    const drafts = parseRecipeDrafts(fields.get('recipeGroups'));
-    if (!meal || !drafts) return 'invalid';
+    const items: MealDraftItem[] | null = kind === 'composition' ? parseMealItems(fields.get('mealItems')) :
+      parseRecipeDrafts(fields.get('recipeGroups'))?.map((recipe) => ({ type: 'recipe', recipe })) ?? null;
+    if (!meal || !items) return 'invalid';
+    const ids = [...new Set(items.flatMap((item) => item.type === 'recipe' ? [item.recipe.recipeId] : []))];
     const [recipes, catalog] = await Promise.all([
-      readRecipeCatalog(session.supabase, 'all', drafts.map(({ recipeId }) => recipeId)), readFoodCatalog(session.supabase),
+      ids.length ? readRecipeCatalog(session.supabase, 'all', ids) : { data: [], errors: [] },
+      readFoodCatalog(session.supabase),
     ]);
     if (catalog.error || recipes.errors.some(Boolean)) return 'unavailable';
     const refs = new Map(catalog.data.map((ref) => [ref.id, ref]));
-    const groups = [];
-    for (const draft of drafts) {
-      const recipe = recipes.data.find(({ id }) => id === draft.recipeId);
-      if (!recipe) return 'conflict';
-      const ingredients = resolveRecipeDraft(recipe, draft, refs);
-      const title = localizedText(recipeVariation(recipe, draft)?.names ?? recipe.names, locale);
-      if (!ingredients || !title || title.length > 120) return 'invalid';
-      groups.push({ name: title, servings: draft.servings, ingredients });
+    const groups: PreparationInput[] = [];
+    for (const item of items) {
+      if (item.type === 'food') {
+        const ref = refs.get(item.referenceId);
+        const title = ref && localizedText(ref.food.names, locale);
+        if (!ref || !title) return 'conflict';
+        const group = foodPreparation(item, ref, title);
+        if (!group || title.length > 120) return 'invalid';
+        groups.push({ ...group, role: item.role });
+      } else {
+        const recipe = recipes.data.find(({ id }) => id === item.recipe.recipeId);
+        if (!recipe) return 'conflict';
+        const ingredients = resolveRecipeDraft(recipe, item.recipe, refs);
+        const title = localizedText(draftRecipeName(recipe, item.recipe), locale);
+        if (!ingredients || !title || title.length > 120) return 'invalid';
+        groups.push({ name: title, servings: item.recipe.servings, ingredients, role: item.role });
+      }
     }
     if (groups.flatMap(({ ingredients }) => ingredients).length > maxMealLines) return 'invalid';
     return finish(locale, await session.supabase.rpc('masomeno_save_preparations', {

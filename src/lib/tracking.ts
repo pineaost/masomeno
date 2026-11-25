@@ -1,3 +1,4 @@
+import { localFormDateTime } from './dates.ts';
 import { displayDistance, type DistanceUnit } from './units.ts';
 import type { StrengthEntry, TreadmillSession, WeightMeasurement } from './supabase/database';
 
@@ -11,13 +12,29 @@ export function weightSummary(records: WeightMeasurement[]) {
   return { first, current, change: current - first };
 }
 
-export function weightPoints(records: WeightMeasurement[]) {
-  return records.map((record, index) => ({
+export function weightPoints(records: WeightMeasurement[], timeZone = 'UTC') {
+  const observations = records.toSorted((a, b) => Date.parse(a.measured_at) - Date.parse(b.measured_at)).map((record) => ({
     day: record.measured_at,
     value: record.weight_kg,
-    trend: records.length >= 5 && index >= 2
-      ? (record.weight_kg + records[index - 1].weight_kg + records[index - 2].weight_kg) / 3
-      : undefined,
+    localDay: localFormDateTime(record.measured_at, timeZone).slice(0, 10),
+  }));
+  const daily = new Map<string, { sum: number; count: number }>();
+  for (const { value, localDay } of observations) {
+    const day = daily.get(localDay) ?? { sum: 0, count: 0 };
+    daily.set(localDay, { sum: day.sum + value, count: day.count + 1 });
+  }
+
+  // Weight each observed calendar day equally within the preceding seven local days.
+  const trends = new Map<string, number>();
+  let recent: { date: number; value: number }[] = [];
+  for (const [day, { sum, count }] of daily) {
+    const date = Date.parse(day);
+    recent = recent.filter((point) => date - point.date <= 6 * 86400000);
+    recent.push({ date, value: sum / count });
+    if (recent.length >= 3) trends.set(day, recent.reduce((total, point) => total + point.value, 0) / recent.length);
+  }
+  return observations.map(({ day, value, localDay }) => ({
+    day, value, trend: trends.size >= 2 ? trends.get(localDay) : undefined,
   }));
 }
 

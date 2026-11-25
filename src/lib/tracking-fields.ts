@@ -38,9 +38,11 @@ export function measuredInstant(value: string | null, timeZone: string, now: Dat
   }
 }
 
-export function parseWeighIn(fields: FormData, unit: WeightUnit, timeZone: string, now: Date) {
+export function parseWeighIn(fields: FormData, unit: WeightUnit, timeZone: string, now: Date, existingTime?: string) {
   const weight_kg = weightValue(readText(fields, 'weight'), unit, 0.001, 1000);
-  const measured_at = measuredInstant(readText(fields, 'measured_at'), timeZone, now);
+  const localTime = readText(fields, 'measured_at');
+  const measured_at = existingTime && localTime === localFormDateTime(existingTime, timeZone)
+    ? existingTime : measuredInstant(localTime, timeZone, now);
   const condition = readText(fields, 'condition');
   if (weight_kg === null || !measured_at || condition === null || condition.length > 100) return null;
   return { weight_kg, measured_at, condition: condition || null };

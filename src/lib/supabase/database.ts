@@ -129,7 +129,7 @@ export type Database = {
         Relationships: [];
       };
       recipes: {
-        Row: RecipeSummary & Pick<RecipeForLog, 'base_servings' | 'variants' | 'purchase_unit'> & {
+        Row: RecipeSummary & Pick<RecipeForLog, 'base_servings' | 'variants' | 'purchase_unit' | 'parts'> & {
           instructions: Partial<FoodNames>; published: boolean;
         };
         Insert: never;
