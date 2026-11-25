@@ -23,5 +23,5 @@ export default async function RecipePage({ params, searchParams }: {
   }
   if (!data.recipe) notFound();
   return <RecipeDetail locale={locale} recipe={data.recipe} filter={readRecipeFilter(query.intensidad)}
-    selections={data.selections} fridgeReady={data.fridgeReady} />;
+    selections={data.selections} fridgeReady={data.fridgeReady} log={data.log} />;
 }

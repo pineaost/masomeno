@@ -1,12 +1,13 @@
 import { Temporal } from '@js-temporal/polyfill';
 import type { Locale } from '../i18n/config.ts';
-import { localFormDateTime } from './dates.ts';
+import { isCalendarDay, localFormDateTime } from './dates.ts';
 import { isTrackingId, measuredInstant } from './tracking-fields.ts';
+import type { PreparationSnapshot } from './recipe-composition.ts';
 
 export const mealCategories = ['firstMeal', 'lunch', 'snack', 'dinner', 'other'] as const;
 export type MealCategory = (typeof mealCategories)[number];
 export type FoodNames = Record<Locale, string>;
-const portionUnits = ['egg', 'banana', 'tablespoon', 'slice', 'unit', 'piece'] as const;
+const portionUnits = ['egg', 'banana', 'bananaSmall', 'bananaLarge', 'tablespoon', 'slice', 'unit', 'piece', 'cup', 'steak'] as const;
 export type Portion = (typeof portionUnits)[number];
 export type FoodUnit = 'g' | Portion;
 export type FoodReference = {
@@ -18,9 +19,10 @@ export type FoodReference = {
   fat_per_100g: number | null;
   source_url: string | null;
   source_description: string | null;
-  validation: 'verified' | 'pending';
+  validation: 'verified' | 'estimated' | 'pending';
   portion_unit: Portion | null;
   portion_grams: number | null;
+  additional_portions?: Partial<Record<Portion, number>>;
   variant_names?: FoodNames | null;
   source_kind?: 'sr-legacy' | 'fndds' | 'crea' | 'label' | 'official' | null;
   source_ref?: string | null;
@@ -46,6 +48,7 @@ export type MealRecord = {
   name: string | null;
   manual_kcal: number | null;
   components: MealComponent[];
+  preparations?: PreparationSnapshot[] | null;
 };
 export type MealLine = { id: string | null; referenceId: string; amount: number; unit: FoodUnit };
 export type FoodAvailability = 'ready' | 'pending' | 'unavailable';
@@ -66,8 +69,13 @@ export function matchesFoodName(food: { names: FoodNames; synonyms: string[] }, 
   return normalize(query.trim()).split(/\s+/).every((word) => searchable.includes(word));
 }
 
-export function portionInGrams(amount: number, unit: FoodUnit, food: Pick<FoodReference, 'portion_unit' | 'portion_grams'>) {
-  const size = unit === 'g' ? 1 : unit === food.portion_unit ? food.portion_grams : null;
+export function usableFood(food: FoodReference): food is FoodReference & { kcal_per_100g: number } {
+  return food.validation !== 'pending' && food.kcal_per_100g !== null;
+}
+
+export function portionInGrams(amount: number, unit: FoodUnit,
+  food: Pick<FoodReference, 'portion_unit' | 'portion_grams' | 'additional_portions'>) {
+  const size = unit === 'g' ? 1 : unit === food.portion_unit ? food.portion_grams : food.additional_portions?.[unit] ?? null;
   if (size === null || !Number.isFinite(amount) || amount <= 0) return null;
   const grams = amount * size;
   return grams <= 10000 ? grams : null;
@@ -86,14 +94,24 @@ export function mealCalories(meal: MealRecord) {
   return meal.manual_kcal ?? totalCalories(meal.components.map(({ kcal }) => kcal));
 }
 
-export function localFoodDay(now: Date, zone: string) {
+export function localFoodDay(now: Date, zone: string, requested?: string) {
   const dateTime = localFormDateTime(now.toISOString(), zone);
-  const date = Temporal.PlainDate.from(dateTime.slice(0, 10));
+  const today = dateTime.slice(0, 10);
+  const date = Temporal.PlainDate.from(requested && requested >= '1900-01-01' && requested <= today && isCalendarDay(requested) ? requested : today);
   return {
-    date: date.toString(), dateTime,
+    date: date.toString(), dateTime, today,
     start: date.toZonedDateTime(zone).toInstant().toString(),
     end: date.add({ days: 1 }).toZonedDateTime(zone).toInstant().toString(),
   };
+}
+
+export function suggestedMealCategory(localDateTime: string): MealCategory {
+  const hour = Number(localDateTime.slice(11, 13));
+  if (hour >= 5 && hour < 11) return 'firstMeal';
+  if (hour >= 12 && hour < 15) return 'lunch';
+  if (hour >= 15 && hour < 20) return 'snack';
+  if (hour >= 20 && hour < 24) return 'dinner';
+  return 'other';
 }
 
 function text(fields: FormData, field: string) {
@@ -115,13 +133,27 @@ export function parseCalorieGoal(fields: FormData) {
   return kcal >= 1 && kcal <= 10000 ? { kcal } : null;
 }
 
-export function parseMeal(fields: FormData, zone: string, now: Date, existingTime?: string) {
+export function parseMealDetails(fields: FormData, zone: string, now: Date, existingTime?: string) {
   const category = mealCategories.find((key) => key === text(fields, 'category'));
   const localTime = text(fields, 'consumed_at');
   const consumedAt = existingTime && localTime === localFormDateTime(existingTime, zone)
     ? existingTime : measuredInstant(localTime, zone, now);
   const name = text(fields, 'name');
   if (!category || !consumedAt || (name?.length ?? 0) > 120) return null;
+  return { category, consumedAt, name: name || null };
+}
+
+export function parseMeal(fields: FormData, zone: string, now: Date, existingTime?: string) {
+  const details = parseMealDetails(fields, zone, now, existingTime);
+  if (!details) return null;
+  const { category, consumedAt, name } = details;
+
+  if (text(fields, 'kind') === 'recipe') {
+    const recipeId = text(fields, 'recipe');
+    const servings = foodAmount(text(fields, 'servings'), 1000);
+    return isTrackingId(recipeId) && servings !== null && servings > 0
+      ? { category, consumedAt, name, kcal: null, lines: [] as MealLine[], recipe: { id: recipeId, servings } } : null;
+  }
 
   if (text(fields, 'kind') === 'manual') {
     const kcal = foodAmount(text(fields, 'kcal'), 100000);

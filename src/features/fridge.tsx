@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Minus, Pencil, Plus, Search, X } from 'lucide-react';
+import { Pencil, Plus, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useOptimistic, useState, useTransition } from 'react';
 import { RecordDialog } from '@/components/tracking-ui';
@@ -10,17 +10,29 @@ import { matchesFoodName, type FoodAvailability } from '@/lib/food';
 import { ingredientNameKey, type FridgeFood, type FridgeSelection, type FridgeStatus, type PersonalFridgeIngredient } from '@/lib/recipe-catalog';
 import { deletePersonalIngredient, savePersonalIngredient, setFridgeIngredient, setPersonalIngredientStatus } from './food-actions';
 
+function AvailabilityButtons({ name, status, pending, onSelect }: {
+  name: string; status: FridgeStatus | null; pending: boolean; onSelect: (value: FridgeStatus | null) => void;
+}) {
+  const t = useTranslations('fridge');
+  const statusId = useId();
+  return <div className="periods fridge-status" role="group" aria-label={name} aria-describedby={statusId}>
+    <span id={statusId} className="sr-only">{t(status ?? 'unmarked')}</span>
+    {(['available', 'unavailable'] as const).map((option) => <button key={option} type="button"
+      className={option === 'available' ? 'fridge-primary' : undefined} disabled={pending} aria-pressed={status === option}
+      aria-label={t(option === 'available' ? 'availableFood' : 'unavailableFood', { food: name })}
+      onClick={() => onSelect(status === option ? null : option)}>{t(option)}</button>)}
+  </div>;
+}
+
 export function FridgeControls({ locale, id, name, status }: {
   locale: Locale; id: string; name: string; status: FridgeStatus | null;
 }) {
   const t = useTranslations('fridge');
-  const statusId = useId();
   const [pending, startTransition] = useTransition();
   const [selected, setSelected] = useOptimistic(status);
   const [error, setError] = useState(false);
 
-  function toggle(next: FridgeStatus) {
-    const value = selected === next ? null : next;
+  function toggle(value: FridgeStatus | null) {
     setError(false);
     startTransition(async () => {
       setSelected(value);
@@ -33,13 +45,7 @@ export function FridgeControls({ locale, id, name, status }: {
   }
 
   return <div className="fridge-options">
-    <div className="periods" role="group" aria-label={name} aria-describedby={statusId} aria-busy={pending}>
-      <span id={statusId} className="sr-only">{t(selected ?? 'unmarked')}</span>
-      <button type="button" aria-pressed={selected === 'available'} disabled={pending}
-        aria-label={t('availableFood', { food: name })} onClick={() => toggle('available')}>{t('available')}</button>
-      <button type="button" aria-pressed={selected === 'unavailable'} disabled={pending}
-        aria-label={t('unavailableFood', { food: name })} onClick={() => toggle('unavailable')}>{t('unavailable')}</button>
-    </div>
+    <AvailabilityButtons name={name} status={selected} pending={pending} onSelect={toggle} />
     {error && <small role="alert">{t('saveError')}</small>}
   </div>;
 }
@@ -58,6 +64,7 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('');
   const [limit, setLimit] = useState(pageSize);
+  const [availableOnly, setAvailableOnly] = useState(false);
   const [editing, setEditing] = useState<{ id: string | null; name: string } | null>(null);
   const [busy, startTransition] = useTransition();
   const [error, setError] = useState(false);
@@ -85,8 +92,8 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
   const categories = new Map(foods.map(({ category: item }) => [item.id, localizedText(item.names, locale) ?? t('category')]));
   const available = ingredients.filter(({ id }) => marked.get(id) === 'available');
   const matches = ingredients.filter(({ match }) => match);
-  const results = matches.filter((item) => !category || item.category.id === category);
-  const searching = Boolean(key || category);
+  const results = matches.filter((item) => (!category || item.category.id === category) &&
+    (!availableOnly || marked.get(item.id) === 'available'));
 
   function mark(item: Ingredient, status: FridgeStatus | null) {
     setError(false);
@@ -116,45 +123,32 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
       </select>
     </div>
     {error && <p className="section-copy" role="alert">{t('saveError')}</p>}
-    {available.length > 0 && <section className="fridge-have">
-      <h2>{t('availableTitle')}</h2>
-      <ul className="fridge-chips">
-        {available.map((item) => <li key={item.id}>
-          <button type="button" disabled={busy} onClick={() => mark(item, null)}
-            aria-label={t('clearAvailable', { food: item.name })} title={t('clearAvailable', { food: item.name })}>
-            {item.name}<X size={15} aria-hidden />
-          </button>
-        </li>)}
-      </ul>
-    </section>}
-    {searching && (results.length ? <ul className="fridge-results">
+    <div className="fridge-summary">
+      <small role="status">{t('availableCount', { count: available.length })}</small>
+      <div className="periods" role="group" aria-label={t('statusFilter')}>
+        <button type="button" aria-pressed={!availableOnly} onClick={() => { setAvailableOnly(false); setLimit(pageSize); }}>{t('allFoods')}</button>
+        <button type="button" aria-pressed={availableOnly} onClick={() => { setAvailableOnly(true); setLimit(pageSize); }}>{t('onlyAvailable')}</button>
+      </div>
+    </div>
+    {results.length ? <ul className="fridge-results">
       {results.slice(0, limit).map((item) => {
-        const status = marked.get(item.id);
-        const has = status === 'available';
-        const statusId = `fridge-status-${item.id}`;
+        const status = marked.get(item.id) ?? null;
         return <li key={item.id}>
-          <button type="button" className="fridge-result" aria-pressed={has} disabled={busy}
-            aria-label={t('availableFood', { food: item.name })} aria-describedby={statusId}
-            onClick={() => mark(item, has ? null : 'available')}>
-            {has ? <Check size={18} aria-hidden /> : <Plus size={18} aria-hidden />}
-            <span><strong>{item.name}</strong><small>{status === 'unavailable' ? t('unavailable') : item.category.name}</small></span>
-            <span id={statusId} className="sr-only">{t(status ?? 'unmarked')}</span>
-          </button>
-          <button type="button" className="icon-button fridge-negative" disabled={busy}
-            aria-pressed={status === 'unavailable'} aria-label={t('unavailableFood', { food: item.name })}
-            title={t('unavailableFood', { food: item.name })}
-            onClick={() => mark(item, status === 'unavailable' ? null : 'unavailable')}>
-            <Minus size={19} aria-hidden />
-          </button>
-          {item.personal && <button type="button" className="icon-button" disabled={busy}
-            aria-label={t('editIngredient', { food: item.name })} onClick={() => setEditing({ id: item.id, name: item.name })}>
-            <Pencil size={16} aria-hidden />
-          </button>}
+          <div className="fridge-result">
+            <strong>{item.name}</strong>
+            <small>{item.category.name}{status === null && <> · {t('unmarked')}</>}</small>
+          </div>
+          <div className="fridge-row-actions">
+            <AvailabilityButtons name={item.name} status={status} pending={busy} onSelect={(value) => mark(item, value)} />
+            {item.personal && <button type="button" className="icon-button" disabled={busy}
+              aria-label={t('editIngredient', { food: item.name })} onClick={() => setEditing({ id: item.id, name: item.name })}>
+              <Pencil size={16} aria-hidden />
+            </button>}
+          </div>
         </li>;
       })}
-    </ul> : <p className="empty-state" role="status">{t('noResults')}</p>)}
-    {!searching && !available.length && <p className="section-copy">{t('searchTip')}</p>}
-    {searching && results.length > limit &&
+    </ul> : <p className="empty-state" role="status">{t(availableOnly && !key && !category ? 'noneAvailable' : 'noResults')}</p>}
+    {results.length > limit &&
       <button className="button secondary" type="button" onClick={() => setLimit(limit + pageSize)}>{t('more')}</button>}
     {key && !matches.length && (personalState === 'ready'
       ? <button className="button secondary" type="button" disabled={busy}

@@ -1,8 +1,10 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 import { RecordDialog } from '@/components/tracking-ui';
 import type { Locale } from '@/i18n/config';
+import { localFormDateTime } from '@/lib/dates';
 import type { Exercise, StrengthEntry, TreadmillSession } from '@/lib/supabase/database';
 import type { MutationResult } from '@/lib/tracking';
 import { displayDistance, displayWeight, type DistanceUnit, type WeightUnit } from '@/lib/units';
@@ -23,11 +25,12 @@ export function ExerciseForm({ locale, exercise, close, remove }: {
   );
 }
 
-export function StrengthForm({ locale, exercise, unit, today, entry, close }: {
-  locale: Locale; exercise: Exercise; unit: WeightUnit; today: string; entry?: StrengthEntry; close: () => void;
+export function StrengthForm({ locale, exercise, unit, timeZone, entry, close }: {
+  locale: Locale; exercise: Exercise; unit: WeightUnit; timeZone: string; entry?: StrengthEntry; close: () => void;
 }) {
   const t = useTranslations('training');
   const weight = useTranslations('weight');
+  const [today] = useState(() => localFormDateTime(new Date().toISOString(), timeZone).slice(0, 10));
   return (
     <RecordDialog title={t(entry ? 'editLoad' : 'newLoad')} close={close}
       save={saveStrength.bind(null, locale, exercise.id, entry?.id ?? null, unit)}
@@ -50,11 +53,12 @@ export function StrengthForm({ locale, exercise, unit, today, entry, close }: {
   );
 }
 
-export function TreadmillForm({ locale, unit, today, entry, close }: {
-  locale: Locale; unit: DistanceUnit; today: string; entry?: TreadmillSession; close: () => void;
+export function TreadmillForm({ locale, unit, timeZone, entry, close }: {
+  locale: Locale; unit: DistanceUnit; timeZone: string; entry?: TreadmillSession; close: () => void;
 }) {
   const t = useTranslations('training');
   const weight = useTranslations('weight');
+  const [today] = useState(() => localFormDateTime(new Date().toISOString(), timeZone).slice(0, 10));
   return (
     <RecordDialog title={t(entry ? 'editRun' : 'newRun')} close={close}
       save={saveTreadmill.bind(null, locale, entry?.id ?? null, unit)}

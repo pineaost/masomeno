@@ -16,8 +16,8 @@ import { StrengthStats } from './live-gym';
 import { deleteExercise, favoriteExercise } from './tracking-actions';
 import { ExerciseForm, StrengthForm } from './training-forms';
 
-export function LiveExercise({ locale, exercise, entries, unit, today }: {
-  locale: Locale; exercise: Exercise; entries: StrengthEntry[]; unit: WeightUnit; today: string;
+export function LiveExercise({ locale, exercise, entries, unit, timeZone }: {
+  locale: Locale; exercise: Exercise; entries: StrengthEntry[]; unit: WeightUnit; timeZone: string;
 }) {
   const t = useTranslations('training');
   const feedback = useTranslations('tracking');
@@ -94,7 +94,7 @@ export function LiveExercise({ locale, exercise, entries, unit, today }: {
         return result;
       }} />}
       {(modal === 'new' || (modal && typeof modal === 'object')) && (
-        <StrengthForm locale={locale} exercise={exercise} unit={unit} today={today} close={close}
+        <StrengthForm locale={locale} exercise={exercise} unit={unit} timeZone={timeZone} close={close}
           entry={typeof modal === 'object' ? modal : undefined} />
       )}
     </>

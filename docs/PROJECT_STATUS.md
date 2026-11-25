@@ -1,27 +1,30 @@
 # Estado de MASOMENO
 
-**24 de noviembre de 2026 · Auditoría de idiomas y adaptación a escritorio y móvil implementada en local.**
+**Primer recetario funcional y registro combinado implementados en local.**
 
 ## Estado funcional
 
 - La versión anterior está publicada en Vercel y el usuario confirmó el acceso con Google. Perfil, preferencias, peso, Gym y Cinta ya usan Supabase.
 - La navegación usa el orden Hoy, Evolución, Comidas y Gym en escritorio y móvil. El nombre queda en Configuración → Perfil, junto a los datos de la cuenta.
-- El idioma se guarda en la cuenta y se conserva al recargar y volver a iniciar sesión. El cambio mantiene el borrador del Perfil y la vuelta al Recetario con su filtro. La altura respeta la unidad elegida y Masomeno conserva su nombre en la interfaz, los metadatos y la PWA.
-- Hoy concentra el balance y el registro de comidas. El objetivo calórico se edita en esa tarjeta y conserva el historial por día local. Evolución mantiene el gráfico y los pesajes con indicadores más compactos.
-- Gym distribuye fuerza y cinta en dos columnas en escritorio y en vertical en móvil. Los destacados muestran la última carga y las repeticiones cuando se registraron.
-- Comidas permite repetir, editar o eliminar consumos y usar el catálogo o una estimación manual. La semilla ampliada deja 65 alimentos y 84 referencias, con estados de preparación, fuentes y medidas documentadas.
-- Mi heladera prioriza búsqueda, categorías y chips para los ingredientes disponibles. Los ingredientes personales se pueden agregar, editar y eliminar. Su disponibilidad se guarda por cuenta junto con el estado de los alimentos del catálogo. La lista personal queda separada de los datos nutricionales.
-- El Recetario deriva las calorías por porción de las referencias específicas. El esquema admite sustituciones y opcionales, y el guardado de comidas admite varias preparaciones con su composición histórica. Las 23 familias candidatas están fuera del catálogo publicado. [Auditoría y modelo](NUTRITION_CATALOG.md) · [Candidatas](RECIPE_CANDIDATES.md)
+- El idioma se guarda en la cuenta y el cambio mantiene el borrador del Perfil. Configuración usa un selector IANA con hora local, acceso directo en móvil y Cerrar sesión al final de la pantalla móvil.
+- Hoy y Comidas comparten el modal de registro. Hoy renueva automáticamente el consumo a medianoche local y distingue el excedente del objetivo. Comidas permite elegir fecha y ver o editar consumos con el objetivo vigente de ese día.
+- Gym usa una sola lista de ejercicios, encabezada por los destacados, con la última carga y repeticiones cuando existen. Ejercicios y Cinta usan dos columnas en escritorio y una en móvil.
+- El registro ofrece medidas caseras, recetas publicadas con composición calculable, comidas recientes y carga libre. El cabutiá crudo y hervido tiene fuente directa y el horneado usa una referencia comparable indicada como estimación. [Fuentes](NUTRITION_CATALOG.md)
+- Mi heladera usa una lista filtrable, con resumen y vista de disponibles. Los ingredientes personales conservan sus controles y persistencia por cuenta.
+- El Recetario tiene 14 fichas en ES, EN e IT y cubre las cuatro intensidades. Las 14 quedan publicadas en la semilla local. Cada ficha ofrece medidas orientativas y nutrientes conocidos. Los filtros muestran toda la selección y priorizan las preparables según Mi heladera. [Primera tanda](RECIPE_CANDIDATES.md#primera-tanda) · [Fuentes y modelo](NUTRITION_CATALOG.md)
+- Se pueden combinar recetas y personalizar porciones, sustituciones y acompañamientos desde la ficha, Hoy o Comidas. El total se guarda junto a la composición consumida. La edición histórica permite cambiar porciones o retirar una preparación con los valores originales.
 - La carita usa azul petróleo en los iconos derivados. El JPG original se conserva. El botón de acceso muestra la G oficial de Google y mantiene el flujo de autenticación. [Recurso de Google Identity](https://developers.google.com/identity/branding-guidelines)
 
 ## Criterios para las próximas etapas
 
-- La disponibilidad servirá para priorizar recetas y el recetario seguirá completo. Al registrar una receta se podrán ajustar porciones e ingredientes en el consumo, conservando intacta la receta de origen. [Criterios de porciones](ROADMAP.md#ingredientes-disponibles-y-porciones)
+- Las cantidades y medidas domésticas son orientativas. Mi heladera registra disponibilidad sin inventario. [Criterios de porciones](ROADMAP.md#ingredientes-disponibles-y-porciones)
 
 ## Verificado
 
-- Se recorrieron los tres idiomas en Chrome de escritorio y con la emulación de iPhone 13 mini. Se comprobaron cambio de idioma, vuelta desde Configuración, recarga, acceso y recuperación simulados, modales, foco y desbordamientos hasta 320 px.
-- Pasaron TypeScript, ESLint, las 38 pruebas automatizadas y el build de producción. Las pruebas incluyen paridad de catálogos, parámetros de traducción, textos alternativos y conservación del destino al cambiar de idioma. En PostgreSQL local se verificaron la semilla repetible, las porciones, las sustituciones, el guardado de preparaciones, el historial y RLS.
+- Primer recetario. Pasaron TypeScript, ESLint, 44 pruebas y el build. PostgreSQL local verificó la semilla idempotente, el catálogo de solo lectura, el aislamiento de cuentas y la edición con referencias históricas.
+- En Chrome de escritorio y con emulación de iPhone 13 mini se verificaron los filtros, las fichas, las sustituciones, el registro combinado, la edición y la barra de Hoy en ES, EN e IT. El recorrido usó el catálogo sembrado en PostgreSQL local y el transporte de Supabase simulado.
+- Se recorrieron los tres idiomas en Chrome de escritorio y con la emulación de iPhone 13 mini. Se verificaron el modal en Hoy y Comidas, el contador tras guardar, la edición histórica, la persistencia de Mi heladera, Gym, el selector IANA y Cerrar sesión. El acceso y las respuestas de Supabase se simularon en localhost.
+- Pasaron TypeScript, ESLint, las 40 pruebas y el build de producción. Las pruebas cubren porciones, objetivos por fecha, excedentes, orden de ejercicios y el cambio de día en Buenos Aires. PostgreSQL local verificó la nueva migración, el historial y el aislamiento entre cuentas.
 - En navegador local se verificaron las tres variantes de idioma, el orden de navegación, la distribución de Hoy y Gym en escritorio y móvil, y el foco de los controles. También se probaron la edición y persistencia del objetivo, el historial de Evolución, la última carga, las repeticiones y los ingredientes personales. Las pruebas usaron dos cuentas y PostgreSQL local con el transporte de Supabase simulado.
 - La consulta de solo lectura en Supabase `uhefabgdptaxcvqdavkj` confirmó las tres migraciones de alimentación, sus nueve tablas con RLS, las funciones de guardado y las 31 referencias verificadas del catálogo.
 - En navegador local se verificaron el botón de Google en escritorio y móvil, OAuth simulado, el formulario de correo y las rutas públicas del favicon, Apple Touch y PWA.
@@ -31,6 +34,6 @@
 
 ## Pendiente
 
-- Aplicar en Supabase `20261124185000_nutrition_and_recipe_composition.sql` y `20261124190000_expand_food_catalog.sql` cuando se autorice. Aplicar primero cualquier migración anterior pendiente, incluida la de ingredientes personales que usa el nuevo esquema.
-- Seleccionar las primeras recetas, confirmar preparación, pesos por referencia, porciones e intensidad y probar el registro con una comida real. Quedan pendientes las referencias del cabutiá crudo y al horno y del maki fino.
+- Aplicar en Supabase, en orden, `20261125100000_recipe_customization.sql` y `20261125101000_seed_first_recipe_book.sql`, después de `20261124191000_daily_food_and_time_zone.sql` si aún está pendiente.
+- Probar el registro y la edición de una comida real desde la versión publicada. El maki fino admite carga libre hasta incorporar una referencia específica.
 - La publicación y las pruebas de esta etapa en Supabase hospedado quedan pendientes. El correo externo sigue pendiente de SMTP propio.

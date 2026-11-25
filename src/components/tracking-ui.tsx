@@ -21,7 +21,7 @@ export function EditRecordButton({ onClick, label }: { onClick: () => void; labe
   );
 }
 
-export function RecordDialog({ title, close, save, remove, removePrompt, duplicateMessage, startWithRemoval = false, children }: {
+export function RecordDialog({ title, close, save, remove, removePrompt, duplicateMessage, startWithRemoval = false, canSave = true, children }: {
   title: string;
   close: () => void;
   save: TrackingAction;
@@ -29,6 +29,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
   removePrompt?: string;
   duplicateMessage?: string;
   startWithRemoval?: boolean;
+  canSave?: boolean;
   children: React.ReactNode;
 }) {
   const t = useTranslations('tracking');
@@ -65,7 +66,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
         <div className="form-actions">
           {remove && <button type="button" className="button secondary" disabled={pending}
             onClick={() => { setError(null); setConfirm(true); }}>{app('remove')}</button>}
-          <button type="submit" className="button primary" disabled={pending}>{pending ? t('saving') : app('save')}</button>
+          <button type="submit" className="button primary" disabled={pending || !canSave}>{pending ? t('saving') : app('save')}</button>
         </div>
       </form>
       {confirm && remove && (

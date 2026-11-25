@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
 import { test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
+import { recipeCaloriesPerServing } from '../src/lib/recipe-composition.ts';
 
 const alice = '00000000-0000-4000-a000-000000000001';
 const bob = '00000000-0000-4000-a000-000000000002';
@@ -526,4 +527,154 @@ test('la ampliación del catálogo y las preparaciones conservan el historial y 
   await edit(components.slice(0, 1));
   assert.deepEqual(await mealSnapshot(), [{ preparations: null }]);
   assert.deepEqual(await rows('select kcal::float from public.meal_components where meal_id = $1', [meal.id]), [{ kcal: 260 }]);
+});
+
+test('guarda porciones y estimaciones, mantiene la fecha y el objetivo históricos, y aísla las cuentas', async (t) => {
+  const db = await PGlite.create();
+  t.after(() => db.close());
+  await db.exec(authFixture);
+  const apply = async (name) => db.exec(await readFile(new URL('../supabase/migrations/' + name + '.sql', import.meta.url), 'utf8'));
+  for (const migration of [
+    '20261124150000_accounts_and_invitations', '20261124160000_weight_and_training',
+    '20261124170000_open_registration', '20261124180000_food_diary', '20261124181000_seed_food_catalog',
+    '20261124182000_fridge_and_recipe_catalog', '20261124183000_personal_fridge_ingredients',
+    '20261124184000_strength_repetitions', '20261124185000_nutrition_and_recipe_composition',
+    '20261124190000_expand_food_catalog',
+  ]) await apply(migration);
+  await db.query('insert into auth.users (id) values ($1), ($2)', [alice, bob]);
+  const as = async (id) => {
+    await db.exec('set role authenticated');
+    await db.query("select set_config('request.jwt.claim.sub', $1, false)", [id]);
+  };
+  for (const id of [alice, bob]) {
+    await as(id);
+    await db.query('select public.masomeno_initialize_account()');
+  }
+  await db.query("update public.profiles set time_zone = 'Europe/Rome'");
+  await db.exec('reset role');
+  await apply('20261124191000_daily_food_and_time_zone');
+
+  const rows = async (sql, args) => (await db.query(sql, args)).rows;
+  await as(bob);
+  assert.deepEqual(await rows('select time_zone, time_zone_selected from public.profiles'),
+    [{ time_zone: 'Europe/Rome', time_zone_selected: true }]);
+  await as(alice);
+  assert.deepEqual(await rows('select time_zone, time_zone_selected from public.profiles'),
+    [{ time_zone: 'UTC', time_zone_selected: false }]);
+  await db.query("update public.profiles set time_zone = 'America/Argentina/Buenos_Aires', time_zone_selected = true where not time_zone_selected");
+
+  const data = [
+    { referenceId: 'strip-steak-cooked', amount: 0.5, unit: 'steak' },
+    { referenceId: 'kabocha-roasted', amount: 1, unit: 'cup' },
+    { referenceId: 'banana-raw', amount: 2, unit: 'bananaSmall' },
+  ];
+  const save = (lineItems, time) => rows("select public.masomeno_save_meal(null,'dinner',$1,null,null,$2) as id",
+    [time, JSON.stringify(lineItems)]);
+  const [historical] = await save(data, '2020-11-25T01:36:00Z');
+  await assert.rejects(save([{ referenceId: 'sushi-maki', amount: 100, unit: 'g' }], '2020-11-25T02:00:00Z'), { code: '22023' });
+  assert.deepEqual(await rows('select grams_per_unit::float as grams, kcal::float from public.meal_components order by position'), [
+    { grams: 119, kcal: 132.69 }, { grams: 205, kcal: 102.5 }, { grams: 101, kcal: 179.78 },
+  ]);
+  assert.equal((await rows("select id from public.meals where (consumed_at at time zone 'America/Argentina/Buenos_Aires')::date = '2020-11-24'"))[0].id,
+    historical.id);
+
+  const groups = [{ name: 'Acompañamiento', servings: 1, ingredients: [{ referenceId: 'kabocha-roasted', grams: 200 }] }];
+  const [nextDay] = await rows("select public.masomeno_save_preparations('lunch','2020-11-25T03:10Z',null,$1) as id", [JSON.stringify(groups)]);
+  assert.deepEqual(await rows("select preparations->0->'isEstimate' as estimated from public.meals where id = $1", [nextDay.id]),
+    [{ estimated: true }]);
+
+  await db.exec('reset role');
+  await db.query('insert into public.calorie_goals (user_id,effective_on,kcal) values ($1,$2,$3),($1,$4,$5)', [
+    alice, '2020-11-24', 1800, '2020-11-25', 2100,
+  ]);
+  await as(alice);
+  const goalOn = (day) => rows('select kcal from public.calorie_goals where effective_on <= $1 order by effective_on desc limit 1', [day]);
+  assert.deepEqual(await goalOn('2020-11-24'), [{ kcal: 1800 }]);
+  assert.deepEqual(await goalOn('2020-11-25'), [{ kcal: 2100 }]);
+  await rows("select public.masomeno_save_meal($1,'dinner','2020-11-25T01:36Z','Actualizada',250,'[]')", [historical.id]);
+  assert.deepEqual(await rows('select name,manual_kcal::int as kcal from public.meals where id = $1', [historical.id]),
+    [{ name: 'Actualizada', kcal: 250 }]);
+  assert.equal((await rows('select count(*)::int as count from public.meal_components where meal_id = $1', [nextDay.id]))[0].count, 1);
+  await as(bob);
+  assert.deepEqual(await rows('select id from public.meals'), []);
+  assert.deepEqual(await goalOn('2020-11-25'), []);
+});
+
+test('el primer recetario es idempotente y los consumos combinados admiten cambios sin recalcular referencias', async (t) => {
+  const db = await PGlite.create();
+  t.after(() => db.close());
+  await db.exec(authFixture);
+  const directory = new URL('../supabase/migrations/', import.meta.url);
+  const seed = '20261125101000_seed_first_recipe_book.sql';
+  const apply = async (migration) => db.exec(await readFile(new URL(migration, directory), 'utf8'));
+  for (const migration of (await readdir(directory)).filter((file) => file.endsWith('.sql') && file <= seed).sort()) {
+    await apply(migration);
+  }
+  await apply(seed);
+  const rows = async (sql, args) => (await db.query(sql, args)).rows;
+  const refs = new Map((await rows('select * from public.food_references')).map((ref) => [ref.id, ref]));
+  const recipes = await rows(`
+    select r.*, jsonb_agg(i order by i.position) as ingredients
+    from public.recipes r join public.recipe_ingredients i on i.recipe_id = r.id
+    where r.published group by r.id order by r.id
+  `);
+  assert.equal(recipes.length, 14);
+  const intensities = { light: 0, medium: 0, hearty: 0, extraHearty: 0 };
+  for (const recipe of recipes) {
+    intensities[recipe.intensity]++;
+    for (const locale of ['es', 'en', 'it']) assert.ok(recipe.names[locale] && recipe.instructions[locale]);
+    assert.ok(recipeCaloriesPerServing(recipe.ingredients, recipe.base_servings, refs) > 0);
+    assert.ok(recipe.ingredients.every(({ food_reference_id }) => refs.get(food_reference_id).kcal_per_100g > 0));
+  }
+  assert.deepEqual(intensities, { light: 3, medium: 4, hearty: 4, extraHearty: 3 });
+  assert.equal((await rows('select count(*)::int as count from public.recipe_ingredient_alternatives'))[0].count, 10);
+  await db.query('insert into auth.users (id) values ($1), ($2)', [alice, bob]);
+  const as = async (id) => {
+    await db.exec('set role authenticated');
+    await db.query("select set_config('request.jwt.claim.sub', $1, false)", [id]);
+  };
+  await as(alice);
+  await db.query('select public.masomeno_initialize_account()');
+  assert.equal((await rows('select id from public.recipes')).length, 14);
+  await assert.rejects(db.query("update public.recipes set published = false"), { code: '42501' });
+  await assert.rejects(db.query("update public.recipe_ingredient_alternatives set grams = 5"), { code: '42501' });
+
+  const mealSql = "select public.masomeno_save_preparations('lunch','2020-11-25T03:10Z','Combinada',$1) as id";
+  const groups = [
+    { name: 'Pizza', servings: 2, ingredients: [{ referenceId: 'pizza-slice-cheese-thin', grams: 172 }] },
+    { name: 'Revuelto', servings: 1, ingredients: [{ referenceId: 'round-squash-raw', grams: 150 }, { referenceId: 'egg-raw', grams: 50 }] },
+  ];
+  const [meal] = await rows(mealSql, [JSON.stringify(groups)]);
+  const snapshot = async () => (await rows('select preparations from public.meals where id = $1', [meal.id]))[0]?.preparations;
+  const total = async () => (await rows('select sum(kcal)::float as kcal from public.meal_components where meal_id = $1', [meal.id]))[0].kcal;
+  const before = await snapshot();
+  assert.equal(before[0].kcal, 457.52);
+  assert.equal(before[1].fat, null);
+  assert.equal(await total(), 548.52);
+  await db.exec('reset role');
+  await db.query("update public.food_references set kcal_per_100g = 300 where id = 'pizza-slice-cheese-thin'");
+  await db.query('update public.recipe_ingredients set grams = 100 where recipe_id = $1', [recipes[11].id]);
+  await apply(seed);
+  assert.deepEqual(await rows('select grams::int as grams from public.recipe_ingredients where recipe_id = $1', [recipes[11].id]), [{ grams: 100 }]);
+
+  const resize = (expected, portions) => rows(
+    "select public.masomeno_resize_preparations($1,'dinner','2020-11-25T03:10Z','Editada',$2,$3) as id",
+    [meal.id, JSON.stringify(expected), JSON.stringify(portions)],
+  );
+  await as(bob);
+  assert.deepEqual(await resize(before, [1, 0]), [{ id: null }]);
+  assert.equal(await snapshot(), undefined);
+  await as(alice);
+  assert.deepEqual(await snapshot(), before);
+  await assert.rejects(resize(before, [0, 0]), { code: '22023' });
+  assert.equal(await total(), 548.52);
+  assert.deepEqual(await resize(before, [1, 0]), [meal]);
+  assert.deepEqual(await resize(before, [2, 1]), [{ id: null }]);
+  assert.equal(await total(), 228.76);
+  const after = await snapshot();
+  assert.equal(after.length, 1);
+  assert.equal(after[0].kcal, 228.76);
+  assert.equal(after[0].ingredients[0].per100g.kcal, 266);
+  assert.equal(after[0].ingredients[0].grams, 86);
+  assert.deepEqual(after[0].ingredients[0].sourceRef, before[0].ingredients[0].sourceRef);
 });

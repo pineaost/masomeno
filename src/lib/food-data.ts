@@ -4,6 +4,8 @@ import type { Locale } from '@/i18n/config';
 import { requireAccount, verifyAccountSession } from '@/lib/account';
 import { loginPath } from '@/lib/auth-paths';
 import { localFoodDay, mealCalories, totalCalories, type CatalogFood, type FoodAvailability, type MealRecord } from '@/lib/food';
+import { recipeCaloriesPerServing } from '@/lib/recipe-composition';
+import { readFoodCatalog, readRecipeCatalog } from '@/lib/recipe-queries';
 import { requestSupabase } from '@/lib/supabase/server';
 
 export async function foodSession(locale: Locale, writable = false) {
@@ -29,7 +31,7 @@ async function goalOn({ supabase, id }: Session, day: string) {
 
 function foodRecords({ supabase, id }: Session) {
   return supabase.from('meals').select(
-    'id,category,consumed_at,name,manual_kcal,components:meal_components(id,position,food_reference_id,amount,unit,grams_per_unit,kcal_per_100g,kcal)',
+    'id,category,consumed_at,name,manual_kcal,preparations,components:meal_components(id,position,food_reference_id,amount,unit,grams_per_unit,kcal_per_100g,kcal)',
   ).eq('user_id', id).order('consumed_at', { ascending: false }).order('id');
 }
 
@@ -44,23 +46,35 @@ async function dayRecords(session: Session, start: string, end: string) {
   }
 }
 
-export async function loadFoodDay(locale: Locale, includeCatalog = false) {
+export async function loadFoodRegistration(session: Session) {
+  const [catalog, recent, recipes] = await Promise.all([
+    readFoodCatalog(session.supabase), foodRecords(session).limit(5), readRecipeCatalog(session.supabase),
+  ]);
+  const catalogItems: CatalogFood[] = catalog.data ?? [];
+  const refs = new Map(catalogItems.map((ref) => [ref.id, ref]));
+  return {
+    zone: session.zone, catalog: catalogItems, recent: recent.data ?? [],
+    recipes: recipes.errors.some(Boolean) ? [] : recipes.data
+      .filter(({ ingredients, base_servings }) => recipeCaloriesPerServing(ingredients, base_servings, refs) !== null)
+      .map(({ id, names, base_servings, ingredients, alternatives, variants, purchase_unit }) =>
+        ({ id, names, base_servings, ingredients, alternatives, variants, purchase_unit })),
+    catalogRecipes: recipes.data,
+    errors: [catalog.error, ...recipes.errors],
+  };
+}
+
+export async function loadFoodDay(locale: Locale, requestedDay?: string) {
   const session = await foodSession(locale);
   if (!session) return null;
-  const day = localFoodDay(new Date(), session.zone);
-  const [goal, records, catalog, recent] = await Promise.all([
-    goalOn(session, day.date),
-    dayRecords(session, day.start, day.end),
-    includeCatalog ? session.supabase.from('food_references').select(
-      '*,food:foods!inner(names,synonyms,category:food_categories!inner(id,names))',
-    ).order('id') : null,
-    includeCatalog ? foodRecords(session).limit(5) : null,
+  const day = localFoodDay(new Date(), session.zone, requestedDay);
+  const [goal, records, log] = await Promise.all([
+    goalOn(session, day.date), dayRecords(session, day.start, day.end), loadFoodRegistration(session),
   ]);
-  const catalogItems: CatalogFood[] = catalog?.data ?? [];
   return {
-    dateTime: day.dateTime, zone: session.zone,
-    state: foodAvailability([goal.error, records.error, catalog?.error ?? null]),
+    date: day.date, today: day.today, zone: log.zone,
+    refreshAt: day.date === day.today ? day.end : undefined,
+    state: foodAvailability([goal.error, records.error]),
     kcal: goal.data?.kcal ?? null, consumed: totalCalories(records.meals.map(mealCalories)),
-    meals: records.meals, catalog: catalogItems, recent: recent?.data ?? [],
+    meals: records.meals, catalog: log.catalog, recent: log.recent, recipes: log.recipes,
   };
 }

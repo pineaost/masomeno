@@ -1,4 +1,5 @@
 import { portionCalories, totalCalories, type FoodNames, type FoodReference } from './food.ts';
+import { isTrackingId } from './tracking-fields.ts';
 
 export type RecipeIngredient = {
   food_id: string;
@@ -7,6 +8,8 @@ export type RecipeIngredient = {
   grams: number | null;
   food_reference_id?: string | null;
   is_optional?: boolean;
+  optional_default?: boolean;
+  adjustable_quantity?: boolean;
 };
 
 export type RecipeAlternative = {
@@ -19,7 +22,26 @@ export type RecipeAlternative = {
 };
 
 export type ReferenceIndex = ReadonlyMap<string, FoodReference>;
-export type IngredientChoices = ReadonlyMap<number, number | 'default' | 'omit'>;
+export type IngredientChoice = number | 'default' | 'omit';
+export type IngredientChoices = ReadonlyMap<number, IngredientChoice>;
+export type RecipeVariation = { names: FoodNames; choices: Record<string, IngredientChoice> };
+export const maxRecipeGroups = 8;
+
+export type RecipeDraft = {
+  recipeId: string;
+  servings: number;
+  choices: Record<string, IngredientChoice>;
+  quantities: Record<string, number>;
+};
+export type RecipeForLog = {
+  id: string;
+  names: FoodNames;
+  base_servings: number;
+  ingredients: RecipeIngredient[];
+  alternatives: RecipeAlternative[];
+  variants?: RecipeVariation[];
+  purchase_unit?: 'slice' | 'unit' | null;
+};
 export type PreparationInput = {
   name: string;
   servings: number;
@@ -50,14 +72,21 @@ export type PreparationSnapshot = {
   }[];
 };
 
+export function recipeChoice(ingredient: RecipeIngredient, choice?: IngredientChoice) {
+  return choice ?? (ingredient.is_optional && !ingredient.optional_default ? 'omit' : 'default');
+}
+
 export function resolveRecipe(
   ingredients: RecipeIngredient[], baseServings: number, servings: number,
   references: ReferenceIndex, alternatives: RecipeAlternative[] = [], choices: IngredientChoices = new Map(),
+  quantities: ReadonlyMap<number, number> = new Map(),
 ) {
   if (!Number.isFinite(servings) || servings <= 0 || !Number.isFinite(baseServings) || baseServings <= 0) return null;
   const lines: PreparationInput['ingredients'] = [];
-  for (const ingredient of ingredients) {
-    const choice = choices.get(ingredient.position) ?? (ingredient.is_optional ? 'omit' : 'default');
+  const positions = new Set(ingredients.map(({ position }) => position));
+  if ([...choices.keys(), ...quantities.keys()].some((position) => !positions.has(position))) return null;
+  for (const ingredient of ingredients.toSorted((a, b) => a.position - b.position)) {
+    const choice = recipeChoice(ingredient, choices.get(ingredient.position));
     if (choice === 'omit') {
       if (!ingredient.is_optional) return null;
       continue;
@@ -66,12 +95,75 @@ export function resolveRecipe(
       : alternatives.find((item) => item.ingredient_position === ingredient.position && item.position === choice);
     const referenceId = selected?.food_reference_id;
     const reference = referenceId ? references.get(referenceId) : undefined;
-    if (!referenceId || reference?.validation !== 'verified' || reference.kcal_per_100g === null || !selected?.grams) return null;
-    const grams = portionCalories(selected.grams * servings / baseServings, 100);
+    if (!referenceId || !reference || reference.validation === 'pending' || reference.kcal_per_100g === null || !selected?.grams) return null;
+    const count = quantities.get(ingredient.position);
+    const unitWeight = reference.portion_grams;
+    const grams = count === undefined ? portionCalories(selected.grams * servings / baseServings, 100)
+      : ingredient.adjustable_quantity && reference.portion_unit && unitWeight ? portionCalories(count * unitWeight, 100) : 0;
     if (!Number.isFinite(grams) || grams <= 0 || grams > 10000) return null;
     lines.push({ referenceId, grams });
   }
   return lines.length ? lines : null;
+}
+
+export function recipeVariation(recipe: RecipeForLog, draft: RecipeDraft) {
+  return recipe.variants?.find((variant) => Object.entries(variant.choices).every(([position, choice]) => {
+    const ingredient = recipe.ingredients.find((slot) => slot.position === Number(position));
+    return ingredient && recipeChoice(ingredient, draft.choices[position]) === choice;
+  }));
+}
+
+export function resolveRecipeDraft(recipe: RecipeForLog, draft: RecipeDraft, references: ReferenceIndex) {
+  const choices = new Map(Object.entries(draft.choices).map(([position, choice]) => [Number(position), choice]));
+  const quantities = new Map(Object.entries(draft.quantities).map(([position, amount]) => [Number(position), amount]));
+  return resolveRecipe(recipe.ingredients, recipe.base_servings, draft.servings, references, recipe.alternatives, choices, quantities);
+}
+
+function boundedMap<T>(value: unknown, validate: (value: unknown) => value is T): value is Record<string, T> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const entries = Object.entries(value);
+  return entries.length <= 30 && entries.every(([key, item]) => /^[1-9]\d{0,4}$/.test(key) && validate(item));
+}
+
+function amount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 && value <= 1000 &&
+    Math.abs(value - Math.round(value * 100) / 100) < 1e-9;
+}
+
+export function parseRecipeDrafts(value: FormDataEntryValue | null): RecipeDraft[] | null {
+  if (typeof value !== 'string' || value.length > 12_000) return null;
+  let drafts: unknown;
+  try {
+    drafts = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(drafts) || drafts.length < 1 || drafts.length > maxRecipeGroups) return null;
+  const ids = new Set<string>();
+  for (const draft of drafts) {
+    if (!draft || !isTrackingId(draft.recipeId) || ids.has(draft.recipeId) || !amount(draft.servings) ||
+      !boundedMap(draft.choices, (choice): choice is IngredientChoice =>
+        choice === 'default' || choice === 'omit' || (typeof choice === 'number' && Number.isInteger(choice) && choice > 0 && choice <= 30)) ||
+      !boundedMap(draft.quantities, amount)) return null;
+    ids.add(draft.recipeId);
+  }
+  return drafts;
+}
+
+export function parseRecordedPortions(fields: FormData) {
+  const values = fields.getAll('recordedServings');
+  if (values.length < 1 || values.length > 30) return null;
+  const portions = values.map((value) => value === '0' ? 0 : typeof value === 'string' && amount(Number(value)) ? Number(value) : null);
+  return portions.every((value): value is number => value !== null) && portions.some((value) => value > 0) ? portions : null;
+}
+
+export function recordedPreparationLines(groups: PreparationSnapshot[], portions: number[]) {
+  if (portions.length !== groups.length) return null;
+  const lines = groups.flatMap((group, index) => portions[index] === 0 ? [] : group.ingredients.map((ingredient) => {
+    const grams = portionCalories(ingredient.grams * portions[index] / group.servings, 100);
+    return { grams, kcal: portionCalories(grams, ingredient.per100g.kcal) };
+  }));
+  return lines.length && lines.every(({ grams }) => grams > 0 && grams <= 10000) ? lines : null;
 }
 
 export function preparationNutrition(ingredients: PreparationInput['ingredients'], references: ReferenceIndex) {
@@ -79,7 +171,7 @@ export function preparationNutrition(ingredients: PreparationInput['ingredients'
   const resolved: { reference: FoodReference; grams: number; kcal: number }[] = [];
   for (const { referenceId, grams } of ingredients) {
     const reference = references.get(referenceId);
-    if (reference?.validation !== 'verified' || reference.kcal_per_100g === null ||
+    if (!reference || reference.validation === 'pending' || reference.kcal_per_100g === null ||
       !Number.isFinite(grams) || grams <= 0 || grams > 10000) return null;
     resolved.push({ reference, grams, kcal: portionCalories(grams, reference.kcal_per_100g) });
   }

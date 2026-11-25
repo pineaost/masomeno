@@ -58,20 +58,21 @@ export async function loadGym(locale: Locale) {
   if (!session) return null;
   const { supabase, id, timeZone, weight_unit, distance_unit } = session;
   const [exercises, recent] = await Promise.all([
-    allRows((from, through) => supabase.from('exercises').select('id,name,favorite_slot')
-      .eq('user_id', id).order('name').order('id').range(from, through)),
+    allRows((from, through) => supabase.from('exercises').select('id,name,favorite_slot,latest:strength_entries(*)')
+      .eq('user_id', id).order('id').range(from, through)
+      .order('performed_on', { referencedTable: 'latest', ascending: false })
+      .order('created_at', { referencedTable: 'latest', ascending: false })
+      .order('id', { referencedTable: 'latest', ascending: false }).limit(1, { referencedTable: 'latest' })),
     supabase.from('treadmill_sessions').select('id,distance_km,duration_seconds,performed_on')
       .eq('user_id', id).order('performed_on', { ascending: false })
       .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(10),
   ]);
   if (!exercises || recent.error || !recent.data) return null;
-  const favorites = exercises.filter((exercise) => exercise.favorite_slot !== null).sort((a, b) =>
-    (a.favorite_slot ?? 0) - (b.favorite_slot ?? 0));
-  const entries = await loadStrengthEntries(session, favorites.map(({ id }) => id));
-  if (!entries) return null;
   return {
-    exercises,
-    favoriteCards: favorites.map((exercise) => ({ ...exercise, entries: entries.filter((entry) => entry.exercise_id === exercise.id) })),
+    exercises: exercises.map(({ latest, ...exercise }) => ({
+      ...exercise,
+      latest: latest[0] ? { load_kg: latest[0].load_kg, repetitions: latest[0].repetitions ?? null } : null,
+    })),
     runs: recent.data.toReversed(),
     timeZone,
     weightUnit: weight_unit,

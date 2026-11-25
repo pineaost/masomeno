@@ -1,20 +1,19 @@
 'use client';
 
-import { ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useActionState, useEffect, useRef, useState } from 'react';
 import { useFormStatus } from 'react-dom';
 import { PageHeading } from '@/components/page-heading';
-import { isLocale, type Locale } from '@/i18n/config';
+import { SignOut } from '@/components/sign-out';
+import { isLocale, localePath, type Locale } from '@/i18n/config';
 import { createLocaleHandoff } from '@/i18n/locale-handoff';
 import { useLocalizedValidation } from '@/i18n/form-validation';
 import type { FormStatus } from '@/lib/account-fields';
-import { settingsPath } from '@/lib/settings-paths';
 import type { Preferences, Profile } from '@/lib/supabase/database';
 import { heightInCentimeters, heightInFeetAndInches } from '@/lib/units';
 import { PreferenceFields } from './preference-fields';
+import { TimeZoneSelect } from './time-zone-select';
 
 type SaveAction = (state: FormStatus, fields: FormData) => Promise<FormStatus>;
 type ProfileDraft = { display_name: string; birth_date: string; height_cm: string; time_zone: string };
@@ -74,12 +73,11 @@ function ProfileHeight({ centimeters, imperial, onChange }: {
 }
 
 export function AccountSettings({
-  locale, profile, preferences, backHref, saveProfile, savePreferences,
+  locale, profile, preferences, saveProfile, savePreferences,
 }: {
   locale: Locale;
   profile: Profile;
   preferences: Preferences;
-  backHref: string;
   saveProfile: SaveAction;
   savePreferences: SaveAction;
 }) {
@@ -88,7 +86,7 @@ export function AccountSettings({
   const router = useRouter();
   const validation = useLocalizedValidation();
   const preferencesForm = useRef<HTMLFormElement>(null);
-  const destination = settingsPath(locale, backHref);
+  const destination = localePath(locale, '/configuracion');
   const [handoff] = useState(() => profileHandoff.read(destination));
   useEffect(() => {
     profileHandoff.clear(destination);
@@ -100,14 +98,14 @@ export function AccountSettings({
     display_name: profile.display_name ?? '',
     birth_date: profile.birth_date ?? '',
     height_cm: profile.height_cm?.toString() ?? '',
-    time_zone: profile.time_zone,
+    time_zone: '',
   });
   const [profileStatus, submitProfile, profilePending] = useActionState<FormStatus, FormData>(saveProfile, handoff?.status ?? 'idle');
   const [preferenceStatus, submitPreferences, preferencePending] = useActionState<FormStatus, FormData>(async (state, fields) => {
     const saved = await savePreferences(state, fields);
     const next = fields.get('locale');
     if (saved === 'saved' && typeof next === 'string' && isLocale(next) && next !== locale) {
-      const href = settingsPath(next, backHref);
+      const href = localePath(next, '/configuracion');
       profileHandoff.prepare(href, { values: profileValues, status: profileStatus });
       router.replace(href, { scroll: false });
     }
@@ -120,9 +118,6 @@ export function AccountSettings({
       <section className="panel section-panel settings-panel">
         <div className="panel-heading">
           <h2 id="profile-heading">{t('profile')}</h2>
-          <Link href={backHref} className="button secondary" prefetch={false}>
-            <ArrowLeft size={17} aria-hidden />{nav('back')}
-          </Link>
         </div>
         <form action={submitProfile} aria-labelledby="profile-heading" className="settings-form" {...validation}>
           <fieldset disabled={profilePending || preferencePending} className="form-stack">
@@ -139,12 +134,8 @@ export function AccountSettings({
             <ProfileHeight key={preferences.height_unit} centimeters={profileValues.height_cm}
               imperial={preferences.height_unit === 'feet'}
               onChange={(height_cm) => setProfileValues({ ...profileValues, height_cm })} />
-            <label>
-              {t('timeZone')}
-              <input name="time_zone" placeholder="America/Argentina/Buenos_Aires" maxLength={80}
-                autoCapitalize="none" spellCheck={false} required value={profileValues.time_zone}
-                onChange={(event) => setProfileValues({ ...profileValues, time_zone: event.target.value })} />
-            </label>
+            <TimeZoneSelect value={profileValues.time_zone || profile.time_zone}
+              onChange={(time_zone) => setProfileValues({ ...profileValues, time_zone })} />
           </fieldset>
           <div className="settings-actions">
             <FormResult status={profileStatus} />
@@ -164,6 +155,7 @@ export function AccountSettings({
           </div>
         </form>
       </section>
+      <SignOut locale={locale} mobile />
     </>
   );
 }

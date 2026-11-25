@@ -1,4 +1,5 @@
 import type { FoodNames } from './food.ts';
+import type { RecipeForLog } from './recipe-composition.ts';
 
 export const recipeIntensities = ['light', 'medium', 'hearty', 'extraHearty'] as const;
 export type RecipeIntensity = (typeof recipeIntensities)[number];
@@ -47,4 +48,22 @@ export function ingredientAvailability(ingredients: { food_id: string }[], selec
     if (status === 'unavailable') unavailable++;
   }
   return { available, unavailable, unknown: ids.size - available - unavailable, total: ids.size };
+}
+
+export function recipeAvailability(recipe: RecipeForLog, selections: FridgeSelection[]) {
+  const selected = new Map(selections.map(({ food_id, status }) => [food_id, status]));
+  const required = recipe.purchase_unit ? [] : recipe.ingredients.filter(({ is_optional, optional_default }) => !is_optional || optional_default);
+  let available = 0;
+  let unavailable = 0;
+  for (const ingredient of required) {
+    const options = [ingredient.food_id, ...recipe.alternatives.filter(({ ingredient_position }) =>
+      ingredient_position === ingredient.position).map(({ food_id }) => food_id)];
+    if (options.some((id) => selected.get(id) === 'available')) available++;
+    else if (options.every((id) => selected.get(id) === 'unavailable')) unavailable++;
+  }
+  return { available, unavailable, unknown: required.length - available - unavailable, total: required.length };
+}
+
+export function readinessPriority(status: ReturnType<typeof recipeAvailability>) {
+  return status.total > 0 && status.available === status.total ? 2 : status.available > 0 && !status.unavailable ? 1 : 0;
 }

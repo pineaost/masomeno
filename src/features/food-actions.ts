@@ -4,9 +4,13 @@ import { revalidatePath } from 'next/cache';
 import { localePath, type Locale } from '@/i18n/config';
 import { demoMode } from '@/lib/account';
 import { readLocale } from '@/lib/auth-paths';
-import { parseCalorieGoal, parseMeal } from '@/lib/food';
+import { localizedText } from '@/i18n/localized-text';
+import { maxMealLines, parseCalorieGoal, parseMeal, parseMealDetails } from '@/lib/food';
 import { foodSession } from '@/lib/food-data';
 import { ingredientNameKey, parsePersonalIngredient, type FridgeStatus } from '@/lib/recipe-catalog';
+import { parseRecipeDrafts, parseRecordedPortions, recipeVariation, resolveRecipeDraft,
+  type PreparationSnapshot } from '@/lib/recipe-composition';
+import { readFoodCatalog, readRecipeCatalog } from '@/lib/recipe-queries';
 import type { MutationResult } from '@/lib/tracking';
 import { isTrackingId } from '@/lib/tracking-fields';
 
@@ -21,7 +25,9 @@ function finish(locale: Locale, result: { data: unknown; error: { code?: string 
   return 'saved';
 }
 
-export async function saveMeal(locale: Locale, id: string | null, zone: string, fields: FormData): Promise<MutationResult> {
+export async function saveMeal(
+  locale: Locale, id: string | null, zone: string, expected: PreparationSnapshot[] | null, fields: FormData,
+): Promise<MutationResult> {
   if (id !== null && !isTrackingId(id)) return 'invalid';
   const session = await writeSession(locale);
   if (!session) return 'unavailable';
@@ -34,8 +40,43 @@ export async function saveMeal(locale: Locale, id: string | null, zone: string, 
     if (!data) return 'conflict';
     existingTime = data.consumed_at;
   }
-  const meal = parseMeal(fields, zone, new Date(), existingTime);
-  if (!meal) return 'invalid';
+  const now = new Date();
+  const kind = fields.get('kind');
+  if (kind === 'snapshot' && id && expected) {
+    const meal = parseMealDetails(fields, zone, now, existingTime);
+    const portions = parseRecordedPortions(fields);
+    if (!meal || !portions || portions.length !== expected.length) return 'invalid';
+    return finish(locale, await session.supabase.rpc('masomeno_resize_preparations', {
+      meal_id: id, meal_category: meal.category, meal_time: meal.consumedAt, meal_name: meal.name,
+      expected_groups: expected, portions,
+    }), ['', '/comidas']);
+  }
+  if (kind === 'recipe' && id === null) {
+    const meal = parseMealDetails(fields, zone, now);
+    const drafts = parseRecipeDrafts(fields.get('recipeGroups'));
+    if (!meal || !drafts) return 'invalid';
+    const [recipes, catalog] = await Promise.all([
+      readRecipeCatalog(session.supabase, 'all', drafts.map(({ recipeId }) => recipeId)), readFoodCatalog(session.supabase),
+    ]);
+    if (catalog.error || recipes.errors.some(Boolean)) return 'unavailable';
+    const refs = new Map(catalog.data.map((ref) => [ref.id, ref]));
+    const groups = [];
+    for (const draft of drafts) {
+      const recipe = recipes.data.find(({ id }) => id === draft.recipeId);
+      if (!recipe) return 'conflict';
+      const ingredients = resolveRecipeDraft(recipe, draft, refs);
+      const title = localizedText(recipeVariation(recipe, draft)?.names ?? recipe.names, locale);
+      if (!ingredients || !title || title.length > 120) return 'invalid';
+      groups.push({ name: title, servings: draft.servings, ingredients });
+    }
+    if (groups.flatMap(({ ingredients }) => ingredients).length > maxMealLines) return 'invalid';
+    return finish(locale, await session.supabase.rpc('masomeno_save_preparations', {
+      meal_category: meal.category, meal_time: meal.consumedAt, meal_name: meal.name,
+      groups,
+    }), ['', '/comidas']);
+  }
+  const meal = parseMeal(fields, zone, now, existingTime);
+  if (!meal || meal.recipe || expected) return 'invalid';
   return finish(locale, await session.supabase.rpc('masomeno_save_meal', {
     meal_id: id, meal_category: meal.category, meal_time: meal.consumedAt, meal_name: meal.name,
     estimated_kcal: meal.kcal, lines: meal.lines,
@@ -56,7 +97,7 @@ export async function setCalorieGoal(locale: Locale, fields: FormData): Promise<
   const session = await writeSession(locale);
   if (!session) return 'unavailable';
   const result = await session.supabase.rpc('masomeno_set_calorie_goal', { goal_kcal: goal.kcal });
-  return finish(locale, result, ['']);
+  return finish(locale, result, ['', '/comidas']);
 }
 
 export async function setFridgeIngredient(locale: Locale, foodId: string, status: FridgeStatus | null): Promise<MutationResult> {

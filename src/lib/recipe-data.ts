@@ -3,9 +3,10 @@ import { redirect } from 'next/navigation';
 import type { Locale } from '@/i18n/config';
 import { requireAccount } from '@/lib/account';
 import { loginPath } from '@/lib/auth-paths';
-import { foodAvailability } from '@/lib/food-data';
+import { foodAvailability, foodSession, loadFoodRegistration } from '@/lib/food-data';
 import type { RecipeFilter } from '@/lib/recipe-catalog';
-import { recipeCaloriesPerServing, type RecipeIngredient, type ReferenceIndex } from '@/lib/recipe-composition';
+import { preparationNutrition, recipeCaloriesPerServing, resolveRecipe } from '@/lib/recipe-composition';
+import { readFoodCatalog, readRecipeCatalog } from '@/lib/recipe-queries';
 import { requestSupabase } from '@/lib/supabase/server';
 
 async function recipeSession(locale: Locale) {
@@ -37,55 +38,35 @@ export async function loadFridge(locale: Locale) {
   };
 }
 
-const summary = 'id,names,intensity,preparation_minutes,base_servings';
-
-async function recipeReferences(session: Session, ingredients: RecipeIngredient[]): Promise<{
-  data: ReferenceIndex; error: { code: string } | null;
-}> {
-  const ids = [...new Set(ingredients.flatMap(({ food_reference_id }) => food_reference_id ? [food_reference_id] : []))];
-  if (!ids.length) return { data: new Map(), error: null };
-  const result = await session.supabase.from('food_references').select('*').in('id', ids);
-  return { data: new Map(result.data?.map((ref) => [ref.id, ref])), error: result.error };
-}
-
 export async function loadRecipes(locale: Locale, filter: RecipeFilter) {
   const session = await recipeSession(locale);
-  const book = session.supabase.from('recipes').select(`${summary},ingredients:recipe_ingredients(*)`).order('id');
-  const [recipes, fridge] = await Promise.all([
-    filter === 'all' ? book : book.eq('intensity', filter),
-    listFridge(session),
+  const [recipes, fridge, catalog] = await Promise.all([
+    readRecipeCatalog(session.supabase, filter), listFridge(session), readFoodCatalog(session.supabase),
   ]);
-  const references = await recipeReferences(session, recipes.data?.flatMap(({ ingredients }) => ingredients) ?? []);
+  const references = new Map(catalog.data?.map((ref) => [ref.id, ref]));
   return {
-    state: foodAvailability([recipes.error, references.error]),
-    recipes: (recipes.data ?? []).map((recipe) => ({
+    state: foodAvailability([catalog.error, ...recipes.errors]),
+    recipes: recipes.data.map((recipe) => ({
       ...recipe,
-      kcal_per_serving: recipeCaloriesPerServing(recipe.ingredients, recipe.base_servings, references.data),
+      kcal_per_serving: recipeCaloriesPerServing(recipe.ingredients, recipe.base_servings, references),
     })),
     selections: fridge.data ?? [],
   };
 }
 
 export async function loadRecipe(locale: Locale, id: string) {
-  const session = await recipeSession(locale);
-  const [recipe, fridge] = await Promise.all([
-    session.supabase.from('recipes').select(
-      `${summary},instructions,ingredients:recipe_ingredients(*,food:foods!inner(names))`,
-    ).eq('id', id).maybeSingle(),
-    listFridge(session),
-  ]);
-  const row = recipe.data;
-  const references = await recipeReferences(session, row?.ingredients ?? []);
+  const session = await foodSession(locale);
+  if (!session) return { state: 'unavailable' as const };
+  const [registration, fridge] = await Promise.all([loadFoodRegistration(session), listFridge(session)]);
+  const { errors, catalogRecipes, ...log } = registration;
+  const row = catalogRecipes.find((recipe) => recipe.id === id);
+  const refs = new Map(log.catalog.map((ref) => [ref.id, ref]));
+  const lines = row ? resolveRecipe(row.ingredients, row.base_servings, 1, refs) : null;
+  const nutrition = lines ? preparationNutrition(lines, refs) : null;
   return {
-    state: foodAvailability([recipe.error, references.error]),
-    recipe: row && {
-      ...row,
-      kcal_per_serving: recipeCaloriesPerServing(row.ingredients, row.base_servings, references.data),
-      ingredients: row.ingredients.map((ingredient) => ({
-        ...ingredient,
-        reference: ingredient.food_reference_id ? references.data.get(ingredient.food_reference_id) : undefined,
-      })),
-    },
+    state: foodAvailability(errors),
+    recipe: row && { ...row, kcal_per_serving: nutrition?.kcal ?? null, nutrition },
+    log,
     fridgeReady: !fridge.error,
     selections: fridge.data ?? [],
   };

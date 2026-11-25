@@ -9,6 +9,7 @@ import { loginPath, readLocale } from '@/lib/auth-paths';
 import { verifyAccountSession } from '@/lib/account';
 import { authCookieOptions, isAuthCookie, isRecoveryCookie } from '@/lib/supabase/config';
 import { requestSupabase } from '@/lib/supabase/server';
+import { readTimeZone } from '@/lib/time-zones';
 
 async function settingsSession(locale: Locale) {
   const supabase = await requestSupabase({ writable: true });
@@ -40,13 +41,25 @@ export async function saveProfile(currentLocale: Locale, _status: FormStatus, fi
   const values = parseProfile(fields);
   if (!values) return 'invalid';
 
-  const { data, error } = await supabase.from('profiles').update(values)
-    .eq('id', id).select('id').maybeSingle();
+  const update = (profile: typeof values) => supabase.from('profiles').update(profile).eq('id', id).select('id').maybeSingle();
+  const result = await update({ ...values, time_zone_selected: true });
+  const { data, error } = ['PGRST204', '42703'].includes(result.error?.code ?? '') ? await update(values) : result;
   if (error?.code === '23514') return 'invalid';
   if (error || !data) return 'unavailable';
 
   revalidatePath(localePath(locale), 'layout');
   return 'saved';
+}
+
+export async function initializeTimeZone(currentLocale: Locale, detected: string) {
+  const zone = readTimeZone(detected);
+  if (!zone) return;
+  const supabase = await requestSupabase({ writable: true });
+  const access = await verifyAccountSession(supabase);
+  if (!supabase || access.kind !== 'authenticated') return;
+  const { data } = await supabase.from('profiles').update({ time_zone: zone, time_zone_selected: true })
+    .eq('id', access.id).eq('time_zone', 'UTC').eq('time_zone_selected', false).select('id').maybeSingle();
+  if (data && zone !== 'UTC') revalidatePath(localePath(readLocale(currentLocale)), 'layout');
 }
 
 export async function signOut(currentLocale: Locale) {

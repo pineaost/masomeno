@@ -1,6 +1,6 @@
 'use client';
 
-import { Flame, Pencil, Plus } from 'lucide-react';
+import { Flame, Pencil } from 'lucide-react';
 import Link from 'next/link';
 import { useFormatter, useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -10,9 +10,11 @@ import { readLocale } from '@/lib/auth-paths';
 import { summarizeCalories } from '@/lib/calories';
 import type { FoodAvailability } from '@/lib/food';
 import { setCalorieGoal } from './food-actions';
+import { LogMealButton, useFoodDayRefresh, type FoodLogData } from './food-diary';
 
-export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: {
+export function CaloriesCard({ consumed, goal, state = 'ready', live = false, log, refreshAt }: {
   consumed: number; goal: number | null; state?: FoodAvailability | 'loading'; live?: boolean;
+  log?: FoodLogData; refreshAt?: string;
 }) {
   const t = useTranslations('calories');
   const food = useTranslations('nutrition');
@@ -24,6 +26,7 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: 
   const summary = ready && goal !== null ? summarizeCalories(consumed, goal) : null;
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
   const diary = localePath(locale, '/comidas');
+  useFoodDayRefresh(refreshAt);
 
   return (
     <section className="calories-card" aria-labelledby="calories-title">
@@ -46,13 +49,17 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: 
           <>
             <div className="calories-track" data-near-goal={summary.percentage >= 90}
               data-over-goal={summary.status === 'over'} role="progressbar" aria-labelledby="calories-title"
-              aria-valuemin={0} aria-valuemax={goal} aria-valuenow={Math.min(consumed, goal)}
-              aria-valuetext={t('summary', { consumed, goal, percentage: summary.percentage })}>
-              <div style={{ width: `${summary.fill}%` }} />
+              aria-valuemin={0} aria-valuemax={Math.max(consumed, goal)} aria-valuenow={consumed}
+              aria-valuetext={t('summary', { consumed: number(consumed), goal: number(goal), percentage: number(summary.percentage) })}>
+              <div className="calories-base" style={{ width: `${summary.baseFill}%` }} />
+              {summary.excessFill > 0 && <>
+                <div className="calories-excess" style={{ width: `${summary.excessFill}%` }} />
+                <span className="calories-marker" style={{ left: `${summary.goalMark}%` }} aria-hidden />
+              </>}
             </div>
             <div className="calories-footer">
               <span><strong>{number(Math.abs(summary.difference))} kcal</strong> · {t(summary.status)}</span>
-              <strong>{format.number(summary.percentage)}%</strong>
+              <strong>{number(summary.percentage)}%</strong>
             </div>
           </>
         ) : (
@@ -62,9 +69,7 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false }: 
           </>
         )}
         {live && <div className="calories-actions">
-          {ready && <Link className="button primary" href={`${diary}?registrar=1`} prefetch={false}>
-            <Plus size={18} aria-hidden />{home('logMeal')}
-          </Link>}
+          {ready && log && <LogMealButton locale={locale} log={log} />}
           <Link className="button secondary" href={diary} prefetch={false}>{home('seeMeals')}</Link>
         </div>}
       </div>

@@ -1,5 +1,21 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { readinessPriority, recipeAvailability } from '../src/lib/recipe-catalog.ts';
+
+test('ordena recetas preparables y conserva como desconocida una sustitución sin marcar', () => {
+  const recipe = {
+    ingredients: [{ food_id: 'rice', position: 1 }, { food_id: 'tuna', position: 2 }, { food_id: 'egg', position: 3, is_optional: true }],
+    alternatives: [{ ingredient_position: 2, food_id: 'chicken' }],
+  };
+  const rice = { food_id: 'rice', status: 'available' };
+  const tuna = { food_id: 'tuna', status: 'unavailable' };
+  assert.deepEqual(recipeAvailability(recipe, [rice, tuna]), { available: 1, unavailable: 0, unknown: 1, total: 2 });
+  assert.equal(readinessPriority(recipeAvailability(recipe, [rice, tuna, { food_id: 'chicken', status: 'available' }])), 2);
+  assert.equal(readinessPriority(recipeAvailability(recipe, [rice, tuna, { food_id: 'chicken', status: 'unavailable' }])), 0);
+  assert.deepEqual(recipeAvailability({ ...recipe, purchase_unit: 'unit' }, []), {
+    available: 0, unavailable: 0, unknown: 0, total: 0,
+  });
+});
 import { ingredientAvailability, ingredientNameKey, parsePersonalIngredient, readRecipeFilter, recipeIntensities } from '../src/lib/recipe-catalog.ts';
 
 test('los nombres personales conservan el texto visible y comparan variantes evidentes', () => {

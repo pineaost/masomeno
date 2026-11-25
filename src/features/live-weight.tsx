@@ -34,6 +34,7 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
   const format = useFormatter();
   const [months, setMonths] = useState(1);
   const [modal, setModal] = useState<WeightMeasurement | 'new' | 'goal' | null>(null);
+  const [entryTime, setEntryTime] = useState(now);
   const summary = weightSummary(records);
   const currentDateTime = localFormDateTime(now, timeZone);
   const today = currentDateTime.slice(0, 10);
@@ -56,7 +57,10 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
   return (
     <>
       <PageHeading title={nav('progress')} visuallyHidden>
-        <AddRecordButton onClick={() => setModal('new')}>{home('logWeight')}</AddRecordButton>
+        <AddRecordButton onClick={() => {
+          setEntryTime(new Date().toISOString());
+          setModal('new');
+        }}>{home('logWeight')}</AddRecordButton>
       </PageHeading>
       <dl className="stat-grid">
         {stats.map(({ key, kg }) => (
@@ -123,7 +127,7 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
           <label>
             {tracking('dateTime')}
             <input name="measured_at" type="datetime-local" defaultValue={entry
-              ? localFormDateTime(entry.measured_at, timeZone) : currentDateTime} required />
+              ? localFormDateTime(entry.measured_at, timeZone) : localFormDateTime(entryTime, timeZone)} required />
             <small className="section-copy">{timeZone}</small>
           </label>
           <label>

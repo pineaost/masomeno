@@ -25,17 +25,18 @@ function isFood(screen: Screen): screen is FoodSection {
 
 async function TodayCalories({ locale }: { locale: Locale }) {
   const data = await loadFoodDay(locale);
-  return <CaloriesCard live state={data?.state ?? 'unavailable'} goal={data?.kcal ?? null} consumed={data?.consumed ?? 0} />;
+  return <CaloriesCard live state={data?.state ?? 'unavailable'} goal={data?.kcal ?? null} consumed={data?.consumed ?? 0}
+    log={data ?? undefined} refreshAt={data?.refreshAt} />;
 }
 
-async function DiaryContent({ locale, initialOpen }: { locale: Locale; initialOpen: boolean }) {
-  const data = await loadFoodDay(locale, true);
-  if (data?.state === 'ready') return <FoodDiary {...data} locale={locale} initialOpen={initialOpen} />;
+async function DiaryContent({ locale, date }: { locale: Locale; date?: string }) {
+  const data = await loadFoodDay(locale, date);
+  if (data?.state === 'ready') return <FoodDiary {...data} locale={locale} />;
   const t = await getTranslations({ locale, namespace: 'nutrition' });
   return <p className="panel section-panel" role="status">{t(data?.state ?? 'unavailable')}</p>;
 }
 
-export async function PrivateScreen({ params, screen, register }: ScreenParams & { screen: Screen; register?: boolean }) {
+export async function PrivateScreen({ params, screen, date }: ScreenParams & { screen: Screen; date?: string }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
@@ -69,7 +70,7 @@ export async function PrivateScreen({ params, screen, register }: ScreenParams &
       <PageHeading title={t('nav.meals')} visuallyHidden />
       <FoodNavigation section={screen} demo={false} />
       <Suspense fallback={<p className="empty-state" role="status">{t('nutrition.loading')}</p>}>
-        <DiaryContent locale={locale} initialOpen={register === true} />
+        <DiaryContent locale={locale} date={date} />
       </Suspense>
     </>;
   }

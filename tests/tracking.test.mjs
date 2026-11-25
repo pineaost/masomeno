@@ -4,7 +4,7 @@ import { localFormDateTime } from '../src/lib/dates.ts';
 import {
   measuredInstant, parseExerciseName, parseStrength, parseTreadmill, parseWeighIn, parseWeightGoal,
 } from '../src/lib/tracking-fields.ts';
-import { clockDuration, nextFavoriteSlot, recentRuns, runMetrics, strengthSummary, weightPoints, weightSummary } from '../src/lib/tracking.ts';
+import { orderExercises, clockDuration, nextFavoriteSlot, recentRuns, runMetrics, strengthSummary, weightPoints, weightSummary } from '../src/lib/tracking.ts';
 import { displayDistance, displayWeight, distanceInKm } from '../src/lib/units.ts';
 
 const now = new Date('2026-11-24T12:30:00Z');
@@ -90,4 +90,15 @@ test('cinta calcula velocidad, ritmo y compara ventanas completas ponderadas por
   assert.deepEqual(recentRuns([first, differentDuration], 'km'), { speed: 3.6, count: 2, change: null });
   assert.equal(recentRuns([first, ...Array(8).fill(second)], 'km').change, null);
   assert.deepEqual(recentRuns([...Array(5).fill(first), ...Array(5).fill(second)], 'km'), { speed: 12, count: 5, change: 6 });
+});
+
+test('ordena destacados primero dentro del mismo listado y el resto por nombre', () => {
+  const exercises = [
+    { id: 'a', favorite_slot: null, name: 'Zancadas' },
+    { id: 'b', favorite_slot: 2, name: 'Press plano' },
+    { id: 'c', favorite_slot: null, name: 'Abdominales' },
+    { id: 'd', favorite_slot: 1, name: 'Cuádriceps' },
+  ];
+  assert.deepEqual(orderExercises(exercises, 'es').map(({ id }) => id), ['d', 'b', 'c', 'a']);
+  assert.deepEqual(exercises.map(({ id }) => id), ['a', 'b', 'c', 'd']);
 });

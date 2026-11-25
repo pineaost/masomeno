@@ -1,7 +1,8 @@
 import { PrivateScreen, type ScreenParams } from '@/features/private-screen';
 
 export default async function FoodPage({ params, searchParams }: ScreenParams & {
-  searchParams: Promise<{ registrar?: string | string[] }>;
+  searchParams: Promise<{ fecha?: string | string[] }>;
 }) {
-  return <PrivateScreen params={params} screen="diary" register={(await searchParams).registrar === '1'} />;
+  const { fecha } = await searchParams;
+  return <PrivateScreen params={params} screen="diary" date={typeof fecha === 'string' ? fecha : undefined} />;
 }

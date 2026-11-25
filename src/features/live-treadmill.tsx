@@ -12,8 +12,8 @@ import { clockDuration, runMetrics } from '@/lib/tracking';
 import type { DistanceUnit } from '@/lib/units';
 import { TreadmillForm } from './training-forms';
 
-export function LiveTreadmill({ locale, records, today, unit }: {
-  locale: Locale; records: TreadmillSession[]; today: string; unit: DistanceUnit;
+export function LiveTreadmill({ locale, records, timeZone, unit }: {
+  locale: Locale; records: TreadmillSession[]; timeZone: string; unit: DistanceUnit;
 }) {
   const t = useTranslations('training');
   const gym = useTranslations('gym');
@@ -56,7 +56,7 @@ export function LiveTreadmill({ locale, records, today, unit }: {
           </ul>
         ) : <p className="empty-state">{t('noRuns')}</p>}
       </section>
-      {modal && <TreadmillForm locale={locale} unit={unit} today={today}
+      {modal && <TreadmillForm locale={locale} unit={unit} timeZone={timeZone}
         entry={modal === 'new' ? undefined : modal} close={() => setModal(null)} />}
     </>
   );

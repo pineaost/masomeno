@@ -72,18 +72,7 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .demo-pill { padding: 4px 10px; border-radius: 999px; background: var(--peach-wash); font-size: .75rem; font-weight: 800; white-space: nowrap; }
 .sidebar-bottom { display: none; }
 .mobile-account-trigger { flex: none; margin-inline-start: auto; }
-.mobile-account {
-  inset: calc(max(14px, env(safe-area-inset-top)) + 45px) max(18px, env(safe-area-inset-right)) auto auto;
-  margin: 0;
-  min-width: 182px;
-  max-width: min(260px, calc(100% - 36px));
-  padding: 5px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--bone);
-  color: var(--petrol);
-  box-shadow: 0 8px 25px #074b591c;
-}
+.mobile-account-trigger[aria-current] { background: var(--peach-wash); }
 .account-nav > a, .account-nav button {
   display: flex;
   width: 100%;
@@ -159,10 +148,13 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .calories-goal svg { color: var(--apricot); flex: none; }
 .calories-goal:hover { background: color-mix(in srgb, var(--bone) 14%, transparent); }
 .calories-goal:focus-visible, .calories-actions a:focus-visible { outline-color: var(--apricot); }
-.calories-track { height: 11px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--bone) 22%, var(--petrol)); }
-.calories-track div { height: 100%; border-radius: inherit; background: var(--apricot); transition: width .24s ease; }
-.calories-track[data-near-goal="true"] div { background: color-mix(in srgb, var(--apricot) 74%, var(--bone)); }
-.calories-track[data-over-goal="true"] div { background: var(--apricot); }
+.calories-track { position: relative; display: flex; height: 11px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--bone) 22%, var(--petrol)); }
+.calories-track div { flex: none; height: 100%; transition: width .24s ease; }
+.calories-base { background: var(--apricot); border-radius: inherit; }
+.calories-track[data-near-goal="true"] .calories-base { background: color-mix(in srgb, var(--apricot) 74%, var(--bone)); }
+.calories-track[data-over-goal="true"] .calories-base { border-start-end-radius: 0; border-end-end-radius: 0; }
+.calories-excess { background: #ec938b; }
+.calories-marker { position: absolute; inset-block: 0; width: 2px; transform: translateX(-50%); background: var(--deep); }
 .calories-footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; font-size: .875rem; }
 .calories-footer span { color: color-mix(in srgb, var(--bone) 87%, var(--petrol)); }
 .calories-footer strong { font-weight: 800; color: var(--bone); }
@@ -193,13 +185,20 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .food-history .record-row-copy { min-width: 0; overflow-wrap: anywhere; }
 .food-row-actions { display: flex; gap: 3px; }
 .food-quick-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.food-recent { margin-block: 10px; border-bottom: 1px solid var(--line); }
-.food-recent summary { padding: 10px 4px; min-height: 44px; cursor: pointer; color: var(--petrol); font-size: .875rem; font-weight: 800; }
-.food-recent button { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 44px; width: 100%; padding: 7px 10px; text-align: start; border-radius: 8px; }
-.food-recent button:hover { background: var(--wash); }
-.food-recent button span { min-width: 0; overflow-wrap: anywhere; }
-.food-recent button svg { flex: none; }
-.food-recent small { display: block; color: var(--muted); }
+.food-recent-picker li + li { border-top: 1px solid var(--line); }
+.food-recent-picker button { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-height: 44px; width: 100%; padding: 7px 10px; text-align: start; border-radius: 8px; }
+.food-recent-picker button:hover { background: var(--wash); }
+.food-recent-picker button span { min-width: 0; overflow-wrap: anywhere; }
+.food-recent-picker button svg { flex: none; }
+.food-recent-picker small { display: block; color: var(--muted); }
+.food-portions { gap: 4px; }
+.food-portions button { min-width: 44px; justify-content: center; border: 1px solid var(--line); }
+.food-day-controls { display: flex; align-items: end; flex-wrap: wrap; gap: 12px 24px; padding-block: 6px 12px; border-bottom: 1px solid var(--line); }
+.food-day-controls label { display: grid; gap: 4px; font-size: .875rem; font-weight: 750; }
+.food-day-controls input { min-height: 44px; padding-inline: 8px; border: 1px solid var(--line); border-radius: 9px; background: var(--canvas); }
+.food-day-totals { display: flex; flex-wrap: wrap; gap: 7px 16px; font-size: .875rem; }
+.food-day-totals dt { color: var(--muted); }
+.food-day-totals dd { font-weight: 800; }
 #objetivo-calorico { scroll-margin-top: 82px; }
 
 .quick-section { margin: 24px 0; }
@@ -279,23 +278,33 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .recipe-intensity { padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; color: var(--petrol); font-weight: 750; }
 .recipe-availability, .recipe-detail small { color: var(--muted); }
 .recipe-detail .panel-heading, .recipe-instructions { margin-top: 14px; }
+.recipe-composer, .recipe-preparation, .recipe-options { display: grid; gap: 8px; min-width: 0; }
+.recipe-preparation { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.recipe-preparation h3 { font-size: 1rem; overflow-wrap: anywhere; }
+.recipe-preparation input[type="number"] { max-width: 10rem; }
+.recipe-options summary { cursor: pointer; color: var(--petrol); }
+.recipe-options[open] > :not(summary) { margin-top: 8px; }
+.recipe-preview { font-size: .875rem; color: var(--muted); }
+.recipe-detail > .food-line-heading { flex-wrap: wrap; gap: 8px 12px; }
+.recipe-nutrients { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 8px 0; }
+.recipe-nutrients dd { font-weight: 600; }
+.recipe-meta .recipe-kcal { white-space: nowrap; }
 .recipe-instructions p { white-space: pre-line; margin-top: 6px; }
 .fridge-panel { display: grid; gap: 12px; max-width: 780px; }
 .fridge-panel > button { justify-self: start; }
 .fridge-search { display: flex; flex-wrap: wrap; gap: 8px; }
 .fridge-search .search-field { flex: 2 1 230px; min-width: 0; }
 .fridge-filter { flex: 1 1 150px; max-width: 100%; min-width: 0; min-height: 46px; padding-inline: 9px; border: 1px solid var(--line); border-radius: 10px; background: var(--canvas); }
-.fridge-have { display: grid; gap: 8px; }
-.fridge-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.fridge-chips li { max-width: 100%; }
-.fridge-chips button { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; min-height: 44px; padding: 5px 11px; border-radius: 999px; background: var(--peach-wash); font-size: .875rem; font-weight: 750; text-align: start; overflow-wrap: anywhere; }
-.fridge-chips button svg, .fridge-results .icon-button, .fridge-result svg { flex: none; }
-.fridge-chips button:hover { background: var(--wash); }
-.fridge-results li { display: flex; align-items: center; gap: 4px; padding-block: 3px; border-top: 1px solid var(--line); }
-.fridge-result { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; min-height: 48px; padding: 5px 8px; border-radius: 9px; text-align: start; overflow-wrap: anywhere; }
-.fridge-result:hover, .fridge-negative[aria-pressed="true"] { background: var(--wash); }
-.fridge-result[aria-pressed="true"] { background: var(--peach-wash); }
+.fridge-summary { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.fridge-summary small { color: var(--muted); font-weight: 750; }
+.fridge-results li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding-block: 5px; border-top: 1px solid var(--line); }
+.fridge-result { flex: 1 1 120px; min-width: 0; overflow-wrap: anywhere; }
 .fridge-result small { display: block; color: var(--muted); }
+.fridge-row-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.fridge-status { gap: 4px; }
+.fridge-status button { border: 1px solid var(--line); }
+.fridge-status .fridge-primary { border-color: var(--petrol); }
+.fridge-status button[aria-pressed="true"]:not(.fridge-primary) { background: var(--wash); border-color: var(--petrol); }
 .fridge-options { flex: none; }
 .fridge-options .periods { gap: 4px; }
 .fridge-options button { border: 1px solid var(--line); padding-inline: 8px; }
@@ -325,16 +334,14 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .history .category-icon { width: 32px; height: 32px; }
 
 .gym-grid { display: grid; align-items: start; gap: 10px; }
-.gym-overview { display: grid; grid-template-areas: "favorites" "treadmill" "exercises"; gap: 14px; align-items: start; max-width: 1040px; }
-.gym-overview > :is(.gym-favorites, .section-panel) { margin: 0; min-width: 0; }
-.gym-overview > .gym-favorites { grid-area: favorites; }
-.gym-overview > .treadmill { grid-area: treadmill; }
-.gym-overview > .gym-exercises { grid-area: exercises; }
-.gym-overview .gym-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr)); }
-.gym-overview .gym-card > .empty-state { padding: 0 0 10px; }
-.gym-latest { display: flex; align-items: end; flex-wrap: wrap; justify-content: space-between; gap: 4px 8px; padding-bottom: 10px; }
-.gym-latest dt, .gym-latest small, .gym-stats small, .history-load small { color: var(--muted); font-size: .8125rem; }
-.gym-latest dd { font-size: 1.2rem; font-weight: 800; }
+.gym-overview { display: grid; gap: 14px; align-items: start; max-width: 1040px; }
+.gym-overview > :is(.section-panel, .gym-card) { margin: 0; min-width: 0; }
+.gym-overview .panel-heading h2 { display: inline-flex; align-items: center; gap: 8px; }
+.exercise-name { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; overflow-wrap: anywhere; }
+.exercise-name svg { flex: none; }
+.exercise-load { min-width: 0; text-align: end; }
+.exercise-load small { display: block; color: var(--muted); }
+.gym-stats small, .history-load small { color: var(--muted); font-size: .8125rem; }
 .history-load { display: grid; justify-items: end; margin-inline-start: auto; }
 .gym-card { padding: 2px 15px 0; }
 .gym-heading { display: flex; align-items: center; gap: 10px; min-height: 62px; padding-block: 8px; }
@@ -361,6 +368,10 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .settings-form fieldset { min-width: 0; }
 .settings-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin-top: 12px; }
 .settings-actions button { margin-left: auto; }
+.time-zone-fields { display: grid; min-width: 0; gap: 8px; }
+.time-zone-fields .button { justify-self: start; }
+.mobile-sign-out { margin-top: 14px; }
+.mobile-sign-out button { width: 100%; }
 .button:disabled { cursor: default; opacity: .65; }
 
 .login-screen {
@@ -371,11 +382,13 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
     max(24px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
 }
 .login-panel { width: min(100%, 440px); padding: clamp(22px, 6vw, 38px); }
-.login-panel .wordmark { padding: 0; }
-.login-tagline { margin-top: 6px; color: var(--muted); }
+.login-panel .wordmark { display: flex; justify-content: center; padding: 0; font-size: clamp(1.9rem, 7.4vw, 2.65rem); }
+.login-panel .wordmark img { width: clamp(40px, 12vw, 52px); height: auto; }
+.login-tagline { margin-top: 6px; color: var(--muted); text-align: center; font-size: .875rem; }
 .login-panel h1 {
-  margin-top: 28px;
-  font-size: clamp(1.9rem, 6vw, 2.55rem);
+  margin-top: 24px;
+  text-align: center;
+  font-size: clamp(1.14rem, 4vw, 1.4rem);
   font-weight: 800;
   letter-spacing: -.055em;
   line-height: 1.15;
@@ -460,6 +473,7 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .form-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
 
 @media (max-width: 599px) {
+  .calories-total > strong { font-size: clamp(2.45rem, 8vw, 3.15rem); }
   .quick-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .quick-action { flex-direction: column; align-items: flex-start; gap: 6px; padding: 9px 10px; }
   .quick-action .quick-icon { width: 34px; height: 34px; border-radius: 9px; }
@@ -489,7 +503,7 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
   .shell-sidebar { flex-direction: column; align-items: stretch; justify-content: start; height: 100dvh; gap: 0; padding: 28px 18px 22px; border-bottom: 0; border-right: 1px solid var(--line); }
   .wordmark { gap: 10px; padding-left: 7px; font-size: 1.65rem; }
   .wordmark img { width: 38px; height: 38px; }
-  .mobile-demo, .shell-sidebar .mobile-account-trigger, .mobile-account { display: none; }
+  .mobile-demo, .shell-sidebar .mobile-account-trigger, .mobile-sign-out { display: none; }
   .main-nav { display: flex; flex-direction: column; align-items: stretch; position: static; min-height: 0; padding: 0; margin-top: 48px; gap: 5px; border: 0; }
   .main-nav a { flex-direction: row; justify-content: start; gap: 11px; min-height: 46px; padding-inline: 13px; font-size: .9375rem; }
   .main-nav a[aria-current] { box-shadow: inset 3px 0 var(--apricot); }
@@ -501,7 +515,7 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
   .demo-mark { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: var(--peach-wash); font-size: 1.35rem; font-weight: 800; }
   .workspace { padding: 28px clamp(28px, 3.45vw, 58px) 35px; }
   .calories-card { max-width: 900px; }
-  .gym-overview { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); grid-template-areas: "favorites treadmill" "exercises treadmill"; }
+  .gym-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .quick-section { margin-block: 23px; }
   .quick-grid, .home-grid { gap: 14px; }
   .quick-action { padding: 12px 15px; min-height: 72px; }

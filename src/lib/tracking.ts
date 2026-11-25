@@ -66,3 +66,9 @@ export function clockDuration(seconds: number) {
 export function nextFavoriteSlot(exercises: { favorite_slot: number | null }[]) {
   return [1, 2, 3, 4].find((slot) => !exercises.some((exercise) => exercise.favorite_slot === slot));
 }
+
+export function orderExercises<T extends { name: string; favorite_slot: number | null }>(exercises: T[], locale: string) {
+  const last = Number.MAX_SAFE_INTEGER;
+  return exercises.toSorted((a, b) =>
+    (a.favorite_slot ?? last) - (b.favorite_slot ?? last) || a.name.localeCompare(b.name, locale));
+}

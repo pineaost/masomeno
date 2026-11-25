@@ -4,21 +4,17 @@ import { AccountSettings } from '@/features/account-settings';
 import { Settings } from '@/features/settings';
 import { isLocale } from '@/i18n/config';
 import { demoMode, readAccount } from '@/lib/account';
-import { settingsBackPath } from '@/lib/settings-paths';
 import { savePreferences, saveProfile } from './actions';
 
-export default async function SettingsPage({ params, searchParams }: {
+export default async function SettingsPage({ params }: {
   params: Promise<{ locale: string }>;
-  searchParams: Promise<{ volver?: string | string[] }>;
 }) {
   const { locale } = await params;
   if (!isLocale(locale)) notFound();
   setRequestLocale(locale);
 
-  const query = await searchParams;
-  const backHref = settingsBackPath(locale, query.volver);
-  if (demoMode()) return <Settings backHref={backHref} />;
+  if (demoMode()) return <Settings />;
   const account = await readAccount(locale);
-  return <AccountSettings locale={locale} profile={account.profile} preferences={account.preferences} backHref={backHref}
+  return <AccountSettings locale={locale} profile={account.profile} preferences={account.preferences}
     saveProfile={saveProfile.bind(null, locale)} savePreferences={savePreferences.bind(null, locale)} />;
 }
