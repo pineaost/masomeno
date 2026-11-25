@@ -17,11 +17,11 @@ import {
 } from '@/lib/food';
 import type { MealDraftItem } from '@/lib/meal-composition';
 import { mealLabel } from '@/lib/meal-label';
-import { recordedPreparationLines, type RecipeForLog } from '@/lib/recipe-composition';
+import { recordedPreparationLines, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
 import { DiaryCalendar } from './diary-calendar';
 import { deleteMeal, saveMeal } from './food-actions';
 import { CatalogPicker, HouseholdAmount, MealItems, mealItemValues, type ItemEdit } from './meal-items';
-import { QuickAmounts, recipeDraft } from './recipe-composer';
+import { QuickAmounts } from './recipe-composer';
 
 type Draft = { key: number; food: CatalogFood; amount: string; unit: FoodUnit; original?: MealComponent };
 type Mode = 'new' | 'edit' | 'remove';
@@ -53,7 +53,7 @@ function draftLines(meal: MealRecord | undefined, catalog: CatalogFood[]): Draft
 
 function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }: {
   meal?: MealRecord; mode: Mode; log: FoodLogData; locale: Locale; day?: string; now: string; close: () => void;
-  initialRecipe?: string;
+  initialRecipe?: RecipeDraft;
 }) {
   const { catalog, recent, recipes, zone } = log;
   const home = useTranslations('home');
@@ -72,7 +72,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
     : meal?.manual_kcal != null || (!meal && !catalog.length) ? 'manual' : 'catalog');
   const [items, setItems] = useState<MealDraftItem[]>([]);
   const [itemEdit, setItemEdit] = useState<ItemEdit | null>(() => initialRecipe
-    ? { index: null, draft: { type: 'recipe', recipe: recipeDraft(initialRecipe) } } : null);
+    ? { index: null, draft: { type: 'recipe', recipe: initialRecipe } } : null);
   const [picking, setPicking] = useState(!initialRecipe);
   const [lines, setLines] = useState<Draft[]>(() => draftLines(meal, catalog));
   const [showCatalog, setShowCatalog] = useState(!lines.length);
@@ -338,7 +338,7 @@ export function useFoodDayRefresh(refreshAt?: string) {
 }
 
 export function LogMealButton({ locale, log, day, initialRecipe }: {
-  locale: Locale; log: FoodLogData; day?: string; initialRecipe?: string;
+  locale: Locale; log: FoodLogData; day?: string; initialRecipe?: RecipeDraft;
 }) {
   const t = useTranslations('home');
   const [now, setNow] = useState<string | null>(null);

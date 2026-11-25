@@ -59,6 +59,26 @@ Los identificadores, las preparaciones y los valores de la columna correspondien
 - Una almendra equivale a 1,2 g y una nuez entera sin cáscara a 4,05 g. El puñado orientativo se aproxima a una onza de 28,35 g. [USDA almendras](https://fdc.nal.usda.gov/food-details/170567/nutrients) · [USDA nueces](https://fdc.nal.usda.gov/food-details/170187/nutrients)
 - El bife mediano de la app corresponde a los 180 g cocidos de la receta base. El bife de la fuente pesa 119 g y sigue disponible. La porción de lentejas de la app corresponde a media taza cocida, 99 g. [USDA bife](https://fdc.nal.usda.gov/food-details/170239/nutrients) · [USDA lentejas](https://fdc.nal.usda.gov/food-details/172421/nutrients)
 
+## Galletitas y facturas
+
+Las diez fichas son estimaciones genéricas. Las unidades y porciones orientan el registro. Las fracciones de paquete usan el peso neto que se ingresa y se guardan en gramos.
+
+| Alimento | g por unidad aprox. | g por porción | kcal por 100 g |
+| --- | ---: | ---: | ---: |
+| Galletitas de agua | 5 | 30 | 411 |
+| Dulces simples | 4,33 | 26 | 423 |
+| Rellenas | 25 | — | 458 |
+| Bañadas en chocolate | 23 | — | 489 |
+| Con chips | 11,5 | 23 | 450 |
+| Medialuna de manteca | 40 | — | 376 |
+| Medialuna de grasa | 30 | — | 395 |
+| Factura simple chica | 35 | — | 395 |
+| Factura con crema pastelera | 45 | — | 339 |
+| Factura con dulce de leche | 70 | — | 339 |
+
+- La composición y las porciones se basan en SARA 2, etiquetas argentinas y tamaños del Atlas UBA. Sablé París aporta la referencia de manteca. [SARA 2, tabla 3.A](https://iah.msal.gov.ar/doc/720.pdf) · [Atlas UBA 2024](https://www.scribd.com/document/767567158/Atlas-Fotografico-de-Alimentos-2da-Edicion-2024) · [Porciones Arcor](https://www.arcor.com/ar/alimentacion-productos-momentos/desayuno) · [Galletitas simples y rellenas](https://www.arcor.com/ar/alimentacion-productos-momentos/merienda) · [Bañadas](https://www.arcor.com/ar/alimentacion-productos-momentos/postre) · [Chips](https://www.arcor.com/es/alimentacion-productos-momentos/merienda) · [Sablé París](https://www.sableparis.com/comercio-exterior.php)
+- La medialuna de grasa toma la composición comparable de facturas simples. Crema pastelera y dulce de leche usan el promedio SARA 2 para facturas rellenas con tamaños orientativos distintos. Los 45 g de la factura con crema se basan en el formato congelado Cremachel 835. El rango del pliego porteño orienta el tamaño de la factura simple chica. [Catálogo Cremachel](https://cremachel.com.ar/wp-content/uploads/2025/07/Cremachel-Catalogo14-07.pdf) · [Pliego GCBA 224/2023](https://documentosboletinoficial.buenosaires.gob.ar/publico/PE-RES-MDHYHGC-SECISYAI-224-23-ANX-2.pdf)
+
 ## Composición y registro
 
 `recipe_ingredients` conserva el alimento genérico y admite referencia, gramos, posición y opcionalidad. `recipe_ingredient_alternatives` define sustitutos con referencia y peso propios. El Recetario deriva la energía y los macronutrientes conocidos de los ingredientes de la composición base. Un nutriente sin valor específico se muestra con un guion. Cambiar porciones, opciones y acompañamientos recalcula el consumo antes de guardarlo. Las cuatro intensidades siguen siendo orientativas.
@@ -66,3 +86,21 @@ Los identificadores, las preparaciones y los valores de la columna correspondien
 `masomeno_save_preparations` guarda una o más preparaciones bajo la comida de la cuenta y reutiliza el cálculo del diario. Cada preparación conserva nombre, porciones, cantidades, fuente, nutrientes y calorías al momento del registro. Una entrada de Biblioteca también conserva la medida y su equivalencia cuando se guarda con otras preparaciones. Las partes reutilizan los pesos y referencias de las posiciones seleccionadas de la receta original. El editor ajusta porciones o retira preparaciones usando la composición y las densidades guardadas. Los cambios en el catálogo dejan intacto el historial.
 
 La heladera prioriza recetas con los ingredientes base o sus sustitutos disponibles y conserva visible la lista completa. Si queda una opción sin marcar, la falta sigue sin confirmar. El campo `matched_food_id` deja preparada la asociación futura de ingredientes personales sin asignar nutrición al texto ingresado. [Familias candidatas](RECIPE_CANDIDATES.md)
+
+## Ampliación de alimentos cotidianos
+
+El catálogo local pasó de 77 a **221 alimentos** y de 100 a **301 referencias**. Hay 241 referencias verificadas, 59 estimadas y una pendiente. La ampliación agrega verduras, frutas, frutos secos, semillas, cortes de carne, pollo, cerdo, pescados, mariscos, huevos, lácteos, pastas, legumbres, panificados, desayunos, bebidas y condimentos.
+
+- La auditoría separó carnes, pescados, huevos y lácteos de la categoría mixta. Papa y batata pasaron a verduras, las aceitunas a conservas y los aceites a condimentos. Manzana, lechuga y avena usan nombres cotidianos. Se conservaron las diez galletitas y facturas anteriores y todos los identificadores y valores históricos.
+- `foods` aporta nombres y sinónimos en ES, EN e IT y mantiene el identificador que usa Mi heladera. `browse_parent` agrupa las variantes que conviene plegar en Biblioteca. Tomate común, bife genérico y nuez de nogal aparecen primero en las búsquedas generales. Cada corte, variedad y estado conserva su referencia `food_references`. Los nombres específicos abren directamente la variante pertinente.
+- El bife genérico a la parrilla usa 189 kcal por 100 g de ARGENFOODS. Las medidas chica, mediana y grande equivalen aproximadamente a 120, 160 y 240 g comestibles cocidos del USDA. El bife de chorizo conserva sus propias medidas. Para pollo se indica si el peso incluye piel y se usan cantidades comestibles sin hueso. [ARGENFOODS 227](https://www.argenfood.unlu.edu.ar/Tablas/Codigo/227.htm) · [USDA FNDDS 2705824](https://fdc.nal.usda.gov/food-details/2705824/nutrients)
+- Tomate cherry tiene composición propia y una taza de 149 g. Las frutas y verduras admiten unidades o tazas donde la fuente las respalda. Los pesos secos y cocidos se distinguen en cereales, legumbres y pastas. Para sumar manteca, aceite, azúcar u otros agregados se pueden combinar alimentos en el registro. [Tomate cherry, composición](https://www.nutridatabaze.cz/en/food/?id=646) · [Taza USDA](https://fdc.nal.usda.gov/food-details/170457/nutrients) · [USDA FoodData Central](https://fdc.nal.usda.gov/download-datasets/)
+- Las referencias estimadas explicitan el promedio, el corte comparable o el producto de etiqueta. Asado y matambre a la parrilla usan el promedio del grupo de cortes grasos. Lenguado usa la referencia de peces planos mixtos. Langostino argentino y camarones mixtos tienen referencias separadas. El mate cebado y el mate cocido tienen composiciones distintas. [SARA 2](https://iah.msal.gov.ar/doc/720.pdf) · [Langostino argentino](https://www.cabovirgenes.es/wp-content/uploads/3.5-TS-Argentine-Shrimp-Tails-Peeled-And-Deveined-Tail-On-EAN-en.pdf) · [UNNE](https://repositorio.unne.edu.ar/bitstream/handle/123456789/27895/RIUNNE_FACENA_CL_Maiocchi_MG.pdf?isAllowed=y&sequence=1)
+- El Recetario incorpora tostadas con palta y con queso como preparaciones con ingredientes del catálogo. La etiqueta de sorrentinos corresponde a pasta fresca de jamón y queso y queda pendiente una referencia por peso hervido. El maki fino sigue pendiente y admite carga libre. Cuando una unidad comercial carece de equivalencia fiable, se ofrece el peso en gramos. [Etiqueta de sorrentinos](https://www.lasaltena.com.ar/productos/sorrentinos-jamon-y-queso/)
+
+## Preparaciones y comidas compradas
+
+- La Etapa B elevó el catálogo local a **222 alimentos y 306 referencias**. Agregó papa al horno con piel (173 g por unidad), jugo de limón (15,25 g por cucharada) y tres referencias de empanadas. [Papa USDA](https://fdc.nal.usda.gov/food-details/170093/nutrients) · [Limón USDA](https://fdc.nal.usda.gov/food-details/167747/nutrients)
+- Las empanadas de carne y pollo usan unidades grandes de 130 g del USDA. Jamón y queso usa un ejemplo argentino de 80 g. Las tres se muestran como aproximaciones. La ficha permite ajustar los gramos. Los tipos de sushi calculan por pieza según las referencias existentes. [Empanada de carne USDA](https://fdc.nal.usda.gov/food-details/2708711/nutrients) · [Empanada de pollo USDA](https://fdc.nal.usda.gov/food-details/2708713/nutrients) · [Etiqueta de jamón y queso](https://paladini.com/es/nuestros-alimentos/14-Panificados/producto/158-Empanada-Jamon-y-Queso)
+- Brócoli, coliflor y alcaucil al vapor usan las referencias comparables de los vegetales hervidos, con el peso comestible cocido. Las instrucciones indican esa aproximación. En los ñoquis se completaron los carbohidratos disponibles y la medida de 130 g cocidos de CREA para registros futuros. [Brócoli USDA](https://fdc.nal.usda.gov/food-details/169967/nutrients) · [Ñoquis CREA](https://www.alimentinutrizione.it/tabelle-nutrizionali/006591)
+- Las preparaciones usan pesos base editables y medidas de Biblioteca, como una taza de arroz blanco cocido de 158 g, media taza de lentejas de 99 g o una unidad de huevo. Cada parte toma solo sus posiciones y conserva sus opciones. Al guardar, cada preparación aporta sus cantidades y valores al historial de la comida. [Arroz USDA](https://fdc.nal.usda.gov/food-details/169757/nutrients) · [Lentejas USDA](https://fdc.nal.usda.gov/food-details/172421/nutrients)

@@ -70,9 +70,11 @@ export async function PrivateScreen({ params, screen, date }: ScreenParams & { s
   if (screen === 'home') {
     return <>
       <PageHeading title={t('nav.home')} visuallyHidden />
-      <Suspense fallback={<CaloriesCard live state="loading" consumed={0} goal={null} />}>
-        <TodayCalories locale={locale} />
-      </Suspense>
+      <div className="today-stack">
+        <Suspense fallback={<CaloriesCard live state="loading" consumed={0} goal={null} />}>
+          <TodayCalories locale={locale} />
+        </Suspense>
+      </div>
     </>;
   }
   if (!isFood(screen)) {

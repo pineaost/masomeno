@@ -1,6 +1,17 @@
-# Familias candidatas del recetario
+# Recetario y familias candidatas
 
-La primera tanda tiene 14 fichas publicadas en la semilla local y 0 borradores dentro de esa selección. Las demás familias y variantes de esta lista quedan como ideas para futuras etapas.
+## Etapa B
+
+La semilla local tiene **59 fichas publicadas**. Son 32 platos, 17 preparaciones independientes y 10 desayunos o meriendas. Otras 16 preparaciones reutilizan ingredientes de las fichas publicadas, para un total de **33 preparaciones**. El buscador también encuentra ocho variantes con nombre propio.
+
+- **Platos.** Se conservaron las composiciones base de la primera tanda. Se incorporaron salteado de pollo, bife con puré, carnes al horno, hamburguesa casera, merluza al limón, salmón, langostinos con arroz, pastas, arroz con pollo, guiso de lentejas, tortilla, Rapiditas con pollo y milanesa de soja. Las compras incluyen empanadas por relleno y sushi por tipo de pieza. La pizza con pepperoni usa una variante de la ficha de pizza existente.
+- **Preparaciones.** Ensaladas, verduras, arroz, polenta, pasta y legumbres se pueden registrar individualmente. Las 16 partes usan las posiciones de la receta original. La ensalada de zanahoria y huevo, el puré, la ensalada mixta y el salteado de verduras tienen fichas y porciones propias, con los ingredientes de sus platos de origen.
+- **Desayunos y meriendas.** Café con leche y tostadas, las tostadas previas, yogur con fruta o granola, avena con banana, copos con leche, sándwich de jamón y queso, tostadas con mermelada y licuado de banana. La tostada con queso untable es una variante de la tostada con queso.
+- **Pendiente.** El maki fino es un borrador. Falta una composición diferenciada por relleno y un peso documentado de la pieza. Nigiri de salmón, California roll y roll de atún ya se pueden registrar. [Fuentes y equivalencias](NUTRITION_CATALOG.md#preparaciones-y-comidas-compradas)
+
+## Relevamiento inicial
+
+La primera tanda reunió 14 fichas publicadas. La tabla conserva las decisiones de formulación del relevamiento original.
 
 | N.º | Familia | Base, variantes y complementos | Referencias o decisiones por cerrar |
 | --- | --- | --- | --- |

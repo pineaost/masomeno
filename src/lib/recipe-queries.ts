@@ -5,7 +5,7 @@ import type { Database } from '@/lib/supabase/database';
 
 export function readFoodCatalog(supabase: SupabaseClient<Database>) {
   return supabase.from('food_references').select(
-    '*,food:foods!inner(names,synonyms,category:food_categories!inner(id,names))',
+    '*,food:foods!inner(*,category:food_categories!inner(id,names))',
   ).order('id');
 }
 

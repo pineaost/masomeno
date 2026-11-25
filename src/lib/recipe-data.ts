@@ -4,8 +4,8 @@ import type { Locale } from '@/i18n/config';
 import { requireAccount } from '@/lib/account';
 import { loginPath } from '@/lib/auth-paths';
 import { foodAvailability, foodSession, loadFoodRegistration } from '@/lib/food-data';
-import type { RecipeFilter } from '@/lib/recipe-catalog';
-import { preparationNutrition, recipeCaloriesPerServing, resolveRecipe } from '@/lib/recipe-composition';
+import { recipeEntries, recipeEntryDraft } from '@/lib/recipe-catalog';
+import { preparationNutrition, resolveRecipeDraft } from '@/lib/recipe-composition';
 import { readFoodCatalog, readRecipeCatalog } from '@/lib/recipe-queries';
 import { requestSupabase } from '@/lib/supabase/server';
 
@@ -25,7 +25,7 @@ function listFridge({ supabase, id }: Session) {
 export async function loadFridge(locale: Locale) {
   const session = await recipeSession(locale);
   const [foods, selections, personal] = await Promise.all([
-    session.supabase.from('foods').select('id,names,synonyms,category:food_categories!inner(id,names)').order('id'),
+    session.supabase.from('foods').select('*,category:food_categories!inner(id,names)').order('id'),
     listFridge(session),
     session.supabase.from('personal_fridge_ingredients').select('id,name,status').eq('user_id', session.id).order('id'),
   ]);
@@ -38,17 +38,18 @@ export async function loadFridge(locale: Locale) {
   };
 }
 
-export async function loadRecipes(locale: Locale, filter: RecipeFilter) {
+export async function loadRecipes(locale: Locale) {
   const session = await recipeSession(locale);
   const [recipes, fridge, catalog] = await Promise.all([
-    readRecipeCatalog(session.supabase, filter), listFridge(session), readFoodCatalog(session.supabase),
+    readRecipeCatalog(session.supabase), listFridge(session), readFoodCatalog(session.supabase),
   ]);
   const references = new Map(catalog.data?.map((ref) => [ref.id, ref]));
   return {
     state: foodAvailability([catalog.error, ...recipes.errors]),
-    recipes: recipes.data.map((recipe) => ({
-      ...recipe,
-      kcal_per_serving: recipeCaloriesPerServing(recipe.ingredients, recipe.base_servings, references),
+    entries: recipes.data.flatMap((recipe) => recipeEntries(recipe).flatMap((entry) => {
+      const lines = resolveRecipeDraft(recipe, recipeEntryDraft(recipe, entry), references);
+      const nutrition = lines && preparationNutrition(lines, references);
+      return nutrition ? [{ recipe, entry, kcal: nutrition.kcal }] : [];
     })),
     selections: fridge.data ?? [],
   };
@@ -60,12 +61,9 @@ export async function loadRecipe(locale: Locale, id: string) {
   const [registration, fridge] = await Promise.all([loadFoodRegistration(session), listFridge(session)]);
   const { errors, catalogRecipes, ...log } = registration;
   const row = catalogRecipes.find((recipe) => recipe.id === id);
-  const refs = new Map(log.catalog.map((ref) => [ref.id, ref]));
-  const lines = row ? resolveRecipe(row.ingredients, row.base_servings, 1, refs) : null;
-  const nutrition = lines ? preparationNutrition(lines, refs) : null;
   return {
     state: foodAvailability(errors),
-    recipe: row && { ...row, kcal_per_serving: nutrition?.kcal ?? null, nutrition },
+    recipe: row,
     log,
     fridgeReady: !fridge.error,
     selections: fridge.data ?? [],

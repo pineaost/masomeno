@@ -2,7 +2,10 @@ import assert from 'node:assert/strict';
 import { readFile, readdir } from 'node:fs/promises';
 import { test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
-import { recipeCaloriesPerServing, resolveRecipeDraft } from '../src/lib/recipe-composition.ts';
+import { catalogChoices } from '../src/lib/catalog-search.ts';
+import { isFoodUnit, portionInGrams } from '../src/lib/food.ts';
+import { ingredientNameKey, readRecipeView, recipeAvailability, recipeEntries, recipeEntryDraft, recipeEntryScore } from '../src/lib/recipe-catalog.ts';
+import { preparationNutrition, recipeCaloriesPerServing, resolveRecipeDraft } from '../src/lib/recipe-composition.ts';
 
 const alice = '00000000-0000-4000-a000-000000000001';
 const bob = '00000000-0000-4000-a000-000000000002';
@@ -730,4 +733,319 @@ test('el primer recetario es idempotente y los consumos combinados admiten cambi
   assert.equal(edited[0].kcal, 602.1);
   assert.equal(edited[0].measureGrams, 180);
   assert.equal(edited[1].kcal, 90.19);
+});
+
+test('la semilla de desayuno carga diez alimentos trazables y registra unidades y porciones', async (t) => {
+  const db = await PGlite.create();
+  t.after(() => db.close());
+  const directory = new URL('../supabase/migrations/', import.meta.url);
+  const seedName = '20261125120000_breakfast_and_snack_foods.sql';
+  await db.exec(authFixture);
+  for (const file of (await readdir(directory)).filter((name) => name.endsWith('.sql') && name <= seedName).sort()) {
+    await db.exec(await readFile(new URL(file, directory), 'utf8'));
+  }
+  await db.exec(await readFile(new URL(seedName, directory), 'utf8'));
+  await db.query('insert into auth.users (id) values ($1)', [alice]);
+  await db.exec('set role authenticated');
+  await db.query("select set_config('request.jwt.claim.sub', $1, false)", [alice]);
+  await db.query('select public.masomeno_initialize_account()');
+
+  const { rows: refs } = await db.query(`
+    select f.id, f.category_id, f.names, f.synonyms, r.validation, r.is_estimate, r.source_url, r.portion_unit, r.additional_portions
+    from public.foods f join public.food_references r on f.id = r.food_id
+    where f.category_id in ('biscuits', 'pastries') order by f.id
+  `);
+  assert.equal(refs.length, 10);
+  for (const ref of refs) {
+    assert.equal(ref.validation, 'estimated');
+    assert.equal(ref.is_estimate, true);
+    assert.equal(ref.portion_unit, 'unit');
+    assert.match(ref.source_url, /^https:\/\//);
+    assert.ok(ref.names.es && ref.names.en && ref.names.it);
+    assert.equal('package' in ref.additional_portions, false);
+    for (const term of ref.category_id === 'biscuits' ? ['galletitas', 'cookies', 'biscotti'] : ['facturas', 'pastries', 'paste dolci']) {
+      assert.ok(ref.synonyms.includes(term));
+    }
+  }
+  const groups = [
+    { name: 'Galletitas de agua', servings: 6, measureUnit: 'unit', ingredients: [{ referenceId: 'water-crackers-prepared', grams: 30 }] },
+    { name: 'Galletitas dulces simples', servings: 1, measureUnit: 'serving', ingredients: [{ referenceId: 'plain-sweet-biscuits-prepared', grams: 26 }] },
+    { name: 'Medialuna de manteca', servings: 2, measureUnit: 'unit', ingredients: [{ referenceId: 'medialuna-butter-prepared', grams: 80 }] },
+  ];
+  const { rows: [meal] } = await db.query(
+    "select public.masomeno_save_preparations('snack','2020-11-25T18:00Z',null,$1) as id", [JSON.stringify(groups)],
+  );
+  const { rows: [saved] } = await db.query('select preparations from public.meals where id = $1', [meal.id]);
+  assert.deepEqual(saved.preparations.map(({ kcal, measureGrams }) => [kcal, measureGrams]),
+    [[123.3, 5], [109.98, 26], [300.8, 40]]);
+  await db.query("select public.masomeno_set_fridge_ingredient('custard-factura','available')");
+  assert.deepEqual((await db.query('select food_id,status from public.fridge_ingredients')).rows,
+    [{ food_id: 'custard-factura', status: 'available' }]);
+  await assert.rejects(db.query("update public.food_references set kcal_per_100g = 1 where id = 'water-crackers-prepared'"), { code: '42501' });
+});
+
+test('el catálogo ampliado agrupa variantes, conserva el historial y aísla el registro de cada cuenta', async (t) => {
+  const db = await PGlite.create();
+  t.after(() => db.close());
+  const directory = new URL('../supabase/migrations/', import.meta.url);
+  const files = (await readdir(directory)).filter((file) => file.endsWith('.sql')).sort();
+  const stages = files.filter((file) => file >= '20261125130000' && file <= '20261125132000_seed_breakfast_toasts.sql');
+  const apply = async (file) => db.exec(await readFile(new URL(file, directory), 'utf8'));
+  const rows = async (sql, values) => (await db.query(sql, values)).rows;
+  const as = async (user) => {
+    await db.exec('set role authenticated');
+    await rows("select set_config('request.jwt.claim.sub', $1, false)", [user]);
+    await rows('select public.masomeno_initialize_account()');
+  };
+  const nutrition = `select id, food_id, preparation, kcal_per_100g, protein_per_100g, carbs_per_100g, fat_per_100g
+    from public.food_references order by id`;
+
+  await db.exec(authFixture);
+  for (const file of files.filter((name) => name < '20261125130000')) await apply(file);
+  const originalFoods = await rows('select id from public.foods order by id');
+  const originalRefs = await rows(nutrition);
+  await rows('insert into auth.users (id) values ($1), ($2)', [alice, bob]);
+  await as(alice);
+  const saveMeal = async (items) => (await rows(
+    "select public.masomeno_save_meal(null, 'lunch', '2020-11-25T11:00Z', null, null, $1) as id", [JSON.stringify(items)],
+  ))[0].id;
+  const oldMeal = await saveMeal([{ referenceId: 'strip-steak-cooked', amount: 1, unit: 'steakMedium' }]);
+  const savedPieces = (id) => rows('select food_reference_id, amount, unit, grams_per_unit, kcal from public.meal_components where meal_id = $1 order by position', [id]);
+  const oldPieces = await savedPieces(oldMeal);
+  await db.exec('reset role');
+
+  for (const file of stages) await apply(file);
+  const totals = `select (select count(*)::int from public.foods) as foods,
+    (select count(*)::int from public.food_references) as refs,
+    (select count(*)::int from public.recipes where published) as recipes`;
+  const count = await rows(totals);
+  for (const file of stages) await apply(file);
+  assert.deepEqual(await rows(totals), count);
+  assert.ok(count[0].foods >= 180 && count[0].foods <= 250);
+  assert.equal(count[0].recipes, 16);
+
+  const allFoods = await rows('select * from public.foods order by id');
+  const nowRefs = await rows(nutrition);
+  const foodsById = new Map(allFoods.map((food) => [food.id, food]));
+  const refsById = new Map(nowRefs.map((ref) => [ref.id, ref]));
+  for (const { id } of originalFoods) assert.ok(foodsById.has(id), id);
+  for (const ref of originalRefs) assert.deepEqual(refsById.get(ref.id), ref);
+  assert.deepEqual(await savedPieces(oldMeal), oldPieces);
+
+  const catalog = await rows(`
+    select r.*, to_jsonb(f) || jsonb_build_object('category', to_jsonb(c)) as food
+    from public.food_references r join public.foods f on f.id = r.food_id
+    join public.food_categories c on c.id = f.category_id order by r.id
+  `);
+  assert.equal(new Set(catalog.map((item) => item.food_id)).size, allFoods.length);
+  for (const language of ['es', 'en', 'it']) {
+    const names = allFoods.map((item) => item.names[language].toLowerCase().trim());
+    assert.equal(new Set(names).size, allFoods.length, `nombres duplicados en ${language}`);
+    assert.ok(names.every(Boolean));
+  }
+  for (const food of allFoods.filter(({ browse_parent }) => browse_parent)) {
+    const parent = foodsById.get(food.browse_parent);
+    assert.ok(parent && parent.category_id === food.category_id && !parent.browse_parent, food.id);
+  }
+  for (const item of catalog) {
+    for (const language of ['es', 'en', 'it']) {
+      assert.ok(item.food.category.names[language], item.id);
+      if (item.variant_names) assert.ok(item.variant_names[language], item.id);
+    }
+    if (item.validation === 'pending') assert.equal(item.kcal_per_100g, null, item.id);
+    else {
+      assert.ok(Number.isFinite(Number(item.kcal_per_100g)) && item.kcal_per_100g !== null, item.id);
+      assert.match(item.source_url, /^https:\/\//);
+      assert.ok(item.source_ref && item.source_description);
+      assert.equal(item.is_estimate, item.validation === 'estimated', item.id);
+    }
+    if (item.portion_unit) assert.ok(isFoodUnit(item.portion_unit) && Number(item.portion_grams) > 0, item.id);
+    for (const [unit, grams] of Object.entries(item.additional_portions)) {
+      assert.ok(unit !== item.portion_unit && isFoodUnit(unit) && Number(grams) > 0, item.id);
+    }
+  }
+  assert.deepEqual(catalog.filter((item) => item.validation === 'pending').map(({ id }) => id), ['sushi-maki']);
+  const matches = (query, locale = 'es') => catalogChoices(catalog, query, locale);
+  for (const [query, locale, expected] of [
+    ['tomate', 'es', 'tomato'], ['pomodoro ciliegino', 'it', 'cherry-tomato'], ['walnuts', 'en', 'walnuts'],
+    ['nueces', 'es', 'walnuts'], ['pecán', 'es', 'pecans'], ['bife', 'es', 'beef-steak'],
+    ['carne', 'es', 'beef-steak'], ['vacío', 'es', 'flank'], ['morrón verde', 'es', 'green-pepper'],
+    ['fideos', 'es', 'wheat-pasta'], ['café con leche', 'es', 'coffee-with-milk'], ['tostado', 'es', 'white-bread'],
+  ]) assert.equal(matches(query, locale)[0]?.primary.food_id, expected, query);
+  assert.ok(matches('tomate')[0].variants.some(({ food_id }) => food_id === 'cherry-tomato'));
+  assert.ok(matches('bife')[0].variants.some(({ food_id }) => food_id === 'strip-steak'));
+  assert.ok(matches('fideos').some(({ primary }) => primary.food_id === 'fresh-pasta'));
+  assert.ok(matches('galletitas').some(({ primary }) => primary.food_id === 'oat-cookies'));
+  assert.ok(matches('facturas').some(({ primary }) => primary.food_id === 'churro'));
+  assert.ok(matches('pescado').some(({ primary }) => primary.food_id === 'fresh-tuna'));
+  assert.equal(matches('mate cocido')[0]?.primary.id, 'mate-prepared-mate-cocido');
+  assert.equal(matches('maki')[0]?.primary.validation, 'pending');
+  assert.equal(Number(matches('tomate cherry')[0]?.primary.portion_grams), 149);
+  const steak = matches('bife')[0].primary;
+  assert.equal(steak.validation, 'estimated');
+  assert.deepEqual(['steakSmall', 'steakMedium', 'steakLarge'].map((unit) => portionInGrams(1, unit, steak)), [120, 160, 240]);
+  assert.notEqual(refsById.get('beef-tenderloin-cooked').fat_per_100g, refsById.get('flank-cooked').fat_per_100g);
+  assert.notEqual(refsById.get('quinoa-raw').kcal_per_100g, refsById.get('quinoa-cooked').kcal_per_100g);
+
+  const toastId = '94170000-0000-4000-8000-000000000016';
+  const [toast] = await rows('select * from public.recipes where id = $1', [toastId]);
+  toast.ingredients = await rows('select * from public.recipe_ingredients where recipe_id = $1 order by position', [toastId]);
+  toast.alternatives = [];
+  const toastRefs = new Map(catalog.map((item) => [item.id, item]));
+  assert.equal(recipeCaloriesPerServing(toast.ingredients, toast.base_servings, toastRefs), 156.8);
+
+  await as(alice);
+  const newMeal = await saveMeal([
+    { referenceId: 'beef-steak-cooked', unit: 'steakLarge', amount: 1 },
+    { referenceId: 'sugar-prepared', unit: 'teaspoon', amount: 2 },
+  ]);
+  assert.deepEqual((await savedPieces(newMeal)).map(({ grams_per_unit, unit }) => [Number(grams_per_unit), unit]),
+    [[240, 'steakLarge'], [4.2, 'teaspoon']]);
+  const [{ id: combined }] = await rows("select public.masomeno_save_preparations('snack','2020-11-25T18:00Z',null,$1) as id", [JSON.stringify([
+    { name: 'Tostada con queso', recipeId: toastId, servings: 1, ingredients: [
+      { referenceId: 'white-bread-prepared-toasted', grams: 22 }, { referenceId: 'port-salut-prepared', grams: 30 },
+    ] },
+    { name: 'Tomates cherry', servings: .5, measureUnit: 'cup', ingredients: [{ referenceId: 'cherry-tomato-raw', grams: 74.5 }] },
+  ])]);
+  const [{ preparations }] = await rows('select preparations from public.meals where id = $1', [combined]);
+  assert.deepEqual(preparations.map(({ kcal, isEstimate }) => [kcal, isEstimate]), [[156.8, true], [19.37, false]]);
+  await rows("select public.masomeno_set_fridge_ingredient('cherry-tomato', 'available')");
+  await assert.rejects(db.query("update public.foods set synonyms = '{}' where id = 'cherry-tomato'"), { code: '42501' });
+
+  await as(bob);
+  assert.deepEqual(await rows('select id from public.meals where id = $1 or id = $2', [newMeal, combined]), []);
+  assert.deepEqual(await rows('select food_id from public.fridge_ingredients'), []);
+  assert.equal((await rows("select id from public.food_references where id = 'cherry-tomato-raw'")).length, 1);
+  await rows("select public.masomeno_set_fridge_ingredient('red-onion', 'available')");
+  await as(alice);
+  assert.deepEqual(await rows('select food_id from public.fridge_ingredients'), [{ food_id: 'cherry-tomato' }]);
+});
+
+test('el recetario ampliado publica platos, partes y variantes completas con registros combinables', async (t) => {
+  const db = await PGlite.create();
+  t.after(() => db.close());
+  const directory = new URL('../supabase/migrations/', import.meta.url);
+  const files = (await readdir(directory)).filter((file) => file.endsWith('.sql')).sort();
+  const apply = async (file) => db.exec(await readFile(new URL(file, directory), 'utf8'));
+  const rows = async (sql, values) => (await db.query(sql, values)).rows;
+  const as = async (user) => {
+    await db.exec('set role authenticated');
+    await rows("select set_config('request.jwt.claim.sub', $1, false)", [user]);
+    await rows('select public.masomeno_initialize_account()');
+  };
+  const id = (number) => `94170000-0000-4000-8000-${String(number).padStart(12, '0')}`;
+  const legacyIngredients = () => rows('select * from public.recipe_ingredients where recipe_id <= $1 order by recipe_id, position', [id(16)]);
+  const legacyRecipes = () => rows('select id, names, instructions, intensity, base_servings from public.recipes where id <= $1 order by id', [id(16)]);
+  const save = async (groups) => (await rows(
+    "select public.masomeno_save_preparations('lunch','2020-11-25T15:00Z',null,$1) as id", [JSON.stringify(groups)],
+  ))[0].id;
+  const snapshot = async (mealId) => (await rows('select preparations from public.meals where id = $1', [mealId]))[0].preparations;
+
+  await db.exec(authFixture);
+  for (const file of files.filter((name) => name < '20261125140000')) await apply(file);
+  const oldRecipes = await legacyRecipes();
+  const oldIngredients = await legacyIngredients();
+  await rows('insert into auth.users (id) values ($1), ($2)', [alice, bob]);
+  await as(alice);
+  const oldMeal = await save([{ name: 'Tostada con queso', servings: 1, ingredients: [
+    { referenceId: 'white-bread-prepared-toasted', grams: 22 }, { referenceId: 'port-salut-prepared', grams: 30 },
+  ] }]);
+  const oldSnapshot = await snapshot(oldMeal);
+  const oldGnocchi = await save([{ name: 'Ñoquis', servings: 1, ingredients: [{ referenceId: 'potato-gnocchi-cooked', grams: 130 }] }]);
+  const oldGnocchiSnapshot = await snapshot(oldGnocchi);
+  assert.equal(oldGnocchiSnapshot[0].carbs, null);
+  await db.exec('reset role');
+
+  const stages = ['20261125140000_recipe_library.sql', '20261125141000_seed_expanded_recipe_library.sql'];
+  for (const file of stages) await apply(file);
+  const recipeRows = () => rows('select * from public.recipes order by id');
+  const seeded = await recipeRows();
+  for (const file of stages) await apply(file);
+  assert.deepEqual(await recipeRows(), seeded);
+  assert.deepEqual(await legacyRecipes(), oldRecipes);
+  assert.deepEqual(await legacyIngredients(), oldIngredients);
+  assert.deepEqual(await snapshot(oldMeal), oldSnapshot);
+  assert.deepEqual(await snapshot(oldGnocchi), oldGnocchiSnapshot);
+
+  const recipeIndex = new Map((await rows(`
+    select r.*, (select jsonb_agg(i order by position) from public.recipe_ingredients i where i.recipe_id = r.id) as ingredients,
+      coalesce((select jsonb_agg(a order by position) from public.recipe_ingredient_alternatives a where a.recipe_id = r.id), '[]') as alternatives
+    from public.recipes r where published order by id
+  `)).map((recipe) => [recipe.id, recipe]));
+  const refs = new Map((await rows('select * from public.food_references')).map((ref) => [ref.id, ref]));
+  assert.equal(Number(refs.get('potato-gnocchi-cooked').carbs_per_100g), 34);
+  const all = [...recipeIndex.values()];
+  assert.deepEqual(['dish', 'preparation', 'snack'].map((kind) => all.filter((recipe) => recipe.kind === kind).length), [32, 17, 10]);
+  assert.equal(all.flatMap((recipe) => recipe.parts).length, 16);
+  assert.deepEqual(seeded.filter(({ published }) => !published).map(({ id }) => id), [id(401)]);
+  const entries = all.flatMap((recipe) => recipeEntries(recipe).map((entry) => ({ recipe, entry })));
+  for (const language of ['es', 'en', 'it']) {
+    const names = entries.map(({ entry }) => ingredientNameKey(entry.names[language]));
+    assert.ok(names.every(Boolean));
+    assert.equal(new Set(names).size, names.length, language);
+  }
+  for (const { recipe, entry } of entries) {
+    const draft = recipeEntryDraft(recipe, entry);
+    const lines = resolveRecipeDraft(recipe, draft, refs);
+    const nutrition = lines && preparationNutrition(lines, refs);
+    assert.ok(nutrition && nutrition.kcal > 0, entry.names.es);
+    for (const language of ['es', 'en', 'it']) assert.ok((entry.part?.instructions ?? recipe.instructions)[language], entry.names.es);
+    if (entry.part) assert.equal(new Set(entry.part.positions).size, entry.part.positions.length, entry.part.id);
+  }
+  for (const recipe of all) {
+    for (const alternative of recipe.alternatives) {
+      const lines = resolveRecipeDraft(recipe, { ...recipeEntryDraft(recipe, recipeEntries(recipe)[0]),
+        choices: { [alternative.ingredient_position]: alternative.position }, servings: 1.5 }, refs);
+      assert.ok(lines?.some(({ referenceId }) => referenceId === alternative.food_reference_id), alternative.food_reference_id);
+    }
+  }
+  assert.deepEqual(readRecipeView({ intensidad: 'light', tipo: 'preparation', q: '  puré ' }), { filter: 'light', kind: 'preparation', query: 'puré' });
+  assert.equal(entries.filter(({ entry, recipe }) => recipeEntryScore(entry, recipe, 'pure de papas') > 0)
+    .sort((a, b) => recipeEntryScore(b.entry, b.recipe, 'pure de papas') - recipeEntryScore(a.entry, a.recipe, 'pure de papas'))[0].entry.part.id, 'potato-mash');
+
+  const steak = recipeIndex.get(id(9));
+  const carrotEntry = recipeEntries(steak).find(({ part }) => part?.id === 'carrot-egg-salad');
+  const beefEntry = recipeEntries(steak).find(({ part }) => part?.id === 'strip-steak');
+  const ricette = [
+    { recipe: steak, entry: beefEntry, servings: 1, role: 'main' },
+    { recipe: steak, entry: carrotEntry, servings: .5, role: 'side' },
+  ];
+  const groups = ricette.map(({ recipe, entry, servings, role }) => ({
+    name: entry.names.es, servings, role,
+    ingredients: resolveRecipeDraft(recipe, { ...recipeEntryDraft(recipe, entry), servings }, refs),
+  }));
+  assert.deepEqual(groups.map(({ ingredients }) => ingredients.map(({ referenceId }) => referenceId)),
+    [['strip-steak-cooked'], ['carrot-raw', 'egg-cooked', 'olive-oil-prepared']]);
+  assert.deepEqual(recipeAvailability(steak, [{ food_id: 'carrot', status: 'available' }, { food_id: 'strip-steak', status: 'unavailable' }], carrotEntry),
+    { available: 1, unavailable: 0, unknown: 2, total: 3 });
+
+  const yogurt = recipeIndex.get(id(302));
+  const modified = resolveRecipeDraft(yogurt, { ...recipeEntryDraft(yogurt, recipeEntries(yogurt)[0]),
+    servings: 2, choices: { 1: 1, 3: 'default' }, weights: { 2: 100 } }, refs);
+  assert.deepEqual(modified, [
+    { referenceId: 'yogurt-greek-prepared-nonfat', grams: 340 }, { referenceId: 'strawberry-raw', grams: 100 },
+    { referenceId: 'banana-raw', grams: 118 },
+  ]);
+  const empanada = recipeIndex.get(id(118));
+  const hamCheese = recipeEntries(empanada).find(({ names }) => names.es.includes('jamón y queso'));
+  const purchased = resolveRecipeDraft(empanada, { ...recipeEntryDraft(empanada, hamCheese), servings: 2 }, refs);
+  assert.deepEqual(purchased, [{ referenceId: 'empanada-ham-cheese-prepared', grams: 160 }]);
+  assert.equal(preparationNutrition(purchased, refs).kcal, 334);
+  assert.equal(preparationNutrition(purchased, refs).estimated, true);
+
+  await as(alice);
+  assert.deepEqual(await rows('select id from public.recipes where id = $1', [id(401)]), []);
+  assert.deepEqual(await rows('select food_id from public.recipe_ingredients where recipe_id = $1', [id(401)]), []);
+  const newMeal = await save(groups);
+  const saved = await snapshot(newMeal);
+  assert.deepEqual(saved.map(({ role, servings, ingredients }) => [role, servings, ingredients.length]), [['main', 1, 1], ['side', .5, 3]]);
+  assert.equal(saved[0].kcal, 401.4);
+  assert.equal(saved[1].kcal, 90.19);
+  await rows("select public.masomeno_resize_preparations($1,'lunch','2020-11-25T15:00Z',null,$2,$3)",
+    [newMeal, JSON.stringify(saved), JSON.stringify([1, 1])]);
+  assert.equal((await snapshot(newMeal))[0].kcal, 401.4);
+  assert.equal((await snapshot(newMeal))[1].ingredients[0].grams, 100);
+  assert.deepEqual(await snapshot(oldMeal), oldSnapshot);
+  await as(bob);
+  assert.deepEqual(await rows('select id from public.meals where id = $1', [newMeal]), []);
 });

@@ -1,8 +1,11 @@
 # Estado de MASOMENO
 
-**Registro cotidiano, historial de peso y ajustes de interfaz implementados en local.**
+**Etapa B implementada en local con 32 platos, 33 preparaciones reutilizables y 10 desayunos o meriendas.**
 
 ## Estado funcional
+
+- Configuración agrupa la búsqueda y la selección IANA. Cerrar sesión tiene más contraste en móvil y conserva su ubicación en el sidebar de escritorio.
+- Las tarjetas de Hoy comparten un máximo de 900 px en escritorio. Biblioteca agrupa variantes y prioriza coincidencias por nombre o sinónimo. Mi heladera conserva cada alimento seleccionable. El peso neto de las galletitas permite convertir ¼ o ½ paquete a gramos. [Catálogo y fuentes](NUTRITION_CATALOG.md#ampliación-de-alimentos-cotidianos)
 
 - La versión anterior está publicada en Vercel y el usuario confirmó el acceso con Google. Perfil, preferencias, peso, Gym y Cinta ya usan Supabase.
 - La navegación usa el orden Hoy, Evolución, Comidas y Gym en escritorio y móvil. El nombre queda en Configuración → Perfil, junto a los datos de la cuenta.
@@ -11,7 +14,7 @@
 - Gym usa una sola lista de ejercicios, encabezada por los destacados, con la última carga y repeticiones cuando existen. Ejercicios y Cinta usan dos columnas en escritorio y una en móvil.
 - El registro ofrece medidas caseras, recetas publicadas con composición calculable, comidas recientes y carga libre. El cabutiá crudo y hervido tiene fuente directa y el horneado usa una referencia comparable indicada como estimación. [Fuentes](NUTRITION_CATALOG.md)
 - Mi heladera muestra todos los ingredientes que coinciden con los filtros. Conserva los estados y los ingredientes personales por cuenta.
-- El Recetario tiene 14 fichas en ES, EN e IT y cubre las cuatro intensidades. Las 14 quedan publicadas en la semilla local. Cada ficha ofrece medidas orientativas y nutrientes conocidos. Los filtros muestran toda la selección y priorizan las preparables según Mi heladera. [Primera tanda](RECIPE_CANDIDATES.md#primera-tanda) · [Fuentes y modelo](NUTRITION_CATALOG.md)
+- El Recetario ofrece búsqueda, filtros de tipo e intensidad, y fichas de preparaciones y variantes en ES, EN e IT. Prioriza las que se pueden hacer según Mi heladera y mantiene visibles las demás. El catálogo tiene 222 alimentos y 306 referencias. [Etapa B](RECIPE_CANDIDATES.md#etapa-b) · [Fuentes y modelo](NUTRITION_CATALOG.md#preparaciones-y-comidas-compradas)
 - El modal combina Biblioteca, recetas y partes reutilizables en filas confirmables, con cantidades domésticas, etiquetas opcionales y total estimado. La edición histórica usa las medidas y los valores guardados.
 - Evolución conserva tres pesajes visibles y abre el historial completo con edición y eliminación confirmada. La tendencia usa una media de siete días locales y el eje agrega 5 kg por extremo. Cinta y fuerza usan márgenes relativos.
 - El login muestra «¿Comiste bien? ¿Entrenaste?» sobre la carita y Masomeno, con traducciones en inglés e italiano. El botón de acceso muestra la G oficial de Google. [Recurso de Google Identity](https://developers.google.com/identity/branding-guidelines)
@@ -21,6 +24,10 @@
 - Las cantidades y medidas domésticas son orientativas. Mi heladera registra disponibilidad sin inventario. [Criterios de porciones](ROADMAP.md#ingredientes-disponibles-y-porciones)
 
 ## Verificado
+
+- Etapa B. Pasaron TypeScript, ESLint, 51 pruebas y el build. PostgreSQL local verificó la reaplicación de las semillas, las recetas publicadas, las porciones, las sustituciones y los consumos históricos. En Chrome de escritorio y emulación de iPhone 13 mini se recorrieron la búsqueda, los filtros, la ficha de una parte, el registro combinado, Hoy, Comidas y la prioridad de Mi heladera en ES, EN e IT con Supabase simulado.
+- Etapa A. Pasaron TypeScript, ESLint, 50 pruebas y el build. PostgreSQL local verificó las migraciones idempotentes, las referencias, los identificadores previos, el historial y el aislamiento entre cuentas. En Chrome de escritorio y con emulación de iPhone 13 mini se verificaron variantes, medidas, registro combinado, Recetario y persistencia de Mi heladera en ES, EN e IT con Supabase simulado.
+- TypeScript, ESLint, 49 pruebas y el build pasaron. En Chrome de escritorio y con emulación de iPhone 13 mini, en ES, EN e IT, se comprobaron el selector IANA, la persistencia, Cerrar sesión, la alineación de Hoy y el registro por unidad, porción y fracción de paquete. El recorrido usó PostgreSQL local y Supabase simulado.
 
 - Registro cotidiano. Pasaron TypeScript, ESLint, 47 pruebas y el build. PostgreSQL local comprobó el guardado mixto, las equivalencias archivadas y el aislamiento entre cuentas.
 - Chrome de escritorio y emulación de iPhone 13 mini en ES, EN e IT. Pasaron el registro mixto, la edición de cantidades, el calendario por teclado, la actualización del gráfico, la gestión de pesajes y la persistencia de Mi heladera, con Supabase simulado sobre PostgreSQL local.
@@ -37,6 +44,10 @@
 - Se auditaron las 31 referencias iniciales. Se completaron dos descripciones USDA y se conservaron las cifras originales. [Auditoría](NUTRITION_CATALOG.md#auditoría-de-las-31-referencias-iniciales)
 
 ## Pendiente
+
+- Aplicar `20261125140000_recipe_library.sql` y `20261125141000_seed_expanded_recipe_library.sql` después de las migraciones de la Etapa A. El maki fino queda como borrador hasta contar con composición y peso fiable por pieza.
+- Aplicar en orden `20261125130000_food_catalog_groups.sql`, `20261125131000_expand_everyday_food_catalog.sql` y `20261125132000_seed_breakfast_toasts.sql` después de las migraciones anteriores pendientes. Luego verificar la Biblioteca, Mi heladera y el Recetario con el entorno publicado.
+- Aplicar `20261125120000_breakfast_and_snack_foods.sql` después de las migraciones anteriores pendientes.
 
 - Aplicar `20261125110000_mixed_meals_and_household_measures.sql` en Supabase después de las migraciones previas que sigan pendientes, incluida la semilla del recetario `20261125101000_seed_first_recipe_book.sql`.
 - Probar el registro y la edición de una comida real desde la versión publicada. El maki fino admite carga libre hasta incorporar una referencia específica.

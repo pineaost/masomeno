@@ -9,7 +9,7 @@ export type MealCategory = (typeof mealCategories)[number];
 export type FoodNames = Record<Locale, string>;
 const portionUnits = [
   'egg', 'banana', 'bananaSmall', 'bananaLarge', 'tablespoon', 'slice', 'unit', 'piece', 'cup', 'steak',
-  'steakMedium', 'almond', 'walnut', 'handful', 'serving',
+  'steakMedium', 'almond', 'walnut', 'handful', 'serving', 'teaspoon', 'steakSmall', 'steakLarge',
 ] as const;
 export type Portion = (typeof portionUnits)[number];
 export type FoodUnit = 'g' | Portion;
@@ -31,9 +31,15 @@ export type FoodReference = {
   source_ref?: string | null;
   is_estimate?: boolean;
 };
-export type CatalogFood = FoodReference & {
-  food: { names: FoodNames; synonyms: string[]; category: { id: string; names: FoodNames } };
+export type FoodIdentity = {
+  id?: string;
+  names: FoodNames;
+  synonyms: string[];
+  browse_parent?: string | null;
+  search_priority?: number;
+  category: { id: string; names: FoodNames };
 };
+export type CatalogFood = FoodReference & { food_id?: string; food: FoodIdentity };
 export type MealComponent = {
   id: string;
   position: number;
@@ -63,14 +69,39 @@ function normalize(value: string) {
 }
 
 export function matchesFood(item: CatalogFood, query: string) {
-  const variants = item.variant_names ? Object.values(item.variant_names) : [];
-  return matchesFoodName({ ...item.food, synonyms: [...item.food.synonyms, ...variants] }, query);
+  return foodSearchScore(item.food, query, item.variant_names) > 0;
 }
 
-export function matchesFoodName(food: { names: FoodNames; synonyms: string[]; category?: { names: FoodNames } }, query: string) {
-  const categoryNames = food.category ? Object.values(food.category.names) : [];
-  const searchable = normalize([...Object.values(food.names), ...food.synonyms, ...categoryNames].join(' '));
-  return normalize(query.trim()).split(/\s+/).every((word) => searchable.includes(word));
+type SearchableFood = Pick<FoodIdentity, 'names' | 'synonyms'> & { category?: { names: FoodNames } };
+
+export function matchesFoodName(food: SearchableFood, query: string) {
+  return foodSearchScore(food, query) > 0;
+}
+
+export function foodSearchScore(
+  food: SearchableFood,
+  query: string,
+  variants?: FoodNames | null,
+) {
+  const term = normalize(query.trim()).replace(/\s+/g, ' ');
+  if (!term) return 1;
+  const names = Object.values(food.names).map(normalize);
+  const aliases = food.synonyms.map(normalize);
+  const details = Object.values(variants ?? {}).map(normalize);
+  const category = Object.values(food.category?.names ?? {}).map(normalize);
+  if (names.includes(term)) return 10;
+  if (details.includes(term)) return 9;
+  if (details.some((name) => name.startsWith(`${term} `) || (name.length >= 4 && term.endsWith(` ${name}`))) &&
+    term.split(' ').every((word) => [...names, ...aliases, ...details].some((name) => name.includes(word)))) return 8;
+  if (aliases.includes(term)) return 7;
+  if (names.some((name) => name.startsWith(`${term} `))) return 6;
+  if (names.some((name) => name.includes(term))) return 5;
+  const searchable = [...names, ...aliases, ...details];
+  if ([...aliases, ...details].some((name) => name.includes(term))) return 4;
+  const words = term.split(' ');
+  if (words.every((word) => searchable.some((name) => name.includes(word)))) return 3;
+  const withCategory = [...searchable, ...category];
+  return words.every((word) => withCategory.some((name) => name.includes(word))) ? 2 : 0;
 }
 
 export function usableFood(food: FoodReference): food is FoodReference & { kcal_per_100g: number } {
@@ -88,7 +119,7 @@ export function preferredFoodUnit(food: FoodReference): FoodUnit {
 export function quickFoodAmounts(unit: FoodUnit) {
   if (unit === 'g') return [];
   if (['egg', 'banana', 'bananaSmall', 'bananaLarge', 'almond', 'walnut', 'unit'].includes(unit)) return [1, 2, 3];
-  return unit === 'tablespoon' ? [0.5, 1, 2] : [0.5, 1, 1.5, 2];
+  return unit === 'tablespoon' || unit === 'teaspoon' ? [0.5, 1, 2] : [0.5, 1, 1.5, 2];
 }
 
 export function portionInGrams(amount: number, unit: FoodUnit,
@@ -141,6 +172,13 @@ export function foodAmount(value: string | null, max = 10000) {
   if (value === null || !/^\d{1,6}(?:\.\d{1,2})?$/.test(value)) return null;
   const amount = Number(value);
   return amount <= max ? amount : null;
+}
+
+export function packageFractionGrams(netWeight: string, fraction: 0.25 | 0.5) {
+  const weight = foodAmount(netWeight);
+  if (!weight) return null;
+  const grams = portionCalories(weight * fraction, 100);
+  return grams > 0 ? grams : null;
 }
 
 export function parseCalorieGoal(fields: FormData) {

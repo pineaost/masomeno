@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  localFoodDay, matchesFood, mealCalories, parseCalorieGoal, parseMeal, portionCalories, portionInGrams, preferredFoodUnit,
+  localFoodDay, matchesFood, mealCalories, parseCalorieGoal, parseMeal, packageFractionGrams, portionCalories, portionInGrams, preferredFoodUnit,
   quickFoodAmounts, suggestedMealCategory, totalCalories,
 } from '../src/lib/food.ts';
 import { readTimeZone } from '../src/lib/time-zones.ts';
@@ -90,6 +90,15 @@ test('combina un bife mediano y media ensalada sin repetir el principal de la re
   assert.equal(resolveRecipeDraft(recipe, { ...side.recipe, weights: { 1: 13 } }, refs), null);
   assert.equal(portionInGrams(0.5, 'handful', { portion_unit: 'walnut', portion_grams: 4.05, additional_portions: { handful: 28.35 } }), 14.175);
   assert.equal(portionInGrams(2, 'walnut', { portion_unit: 'walnut', portion_grams: 4.05 }), 8.1);
+});
+
+test('las fracciones de galletitas dependen del peso neto del paquete', () => {
+  assert.equal(packageFractionGrams('', 0.25), null);
+  assert.equal(packageFractionGrams('0', 0.5), null);
+  assert.equal(packageFractionGrams('155', 0.25), 38.75);
+  assert.equal(packageFractionGrams('170', 0.5), 85);
+  assert.equal(packageFractionGrams('86.02', 0.25), 21.51);
+  assert.equal(packageFractionGrams('10001', 0.5), null);
 });
 
 test('calcula el día local y sus límites aunque cambie el horario de verano', () => {

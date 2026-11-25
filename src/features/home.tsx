@@ -30,17 +30,19 @@ export function Home() {
           {format.dateTime(calendarDate(demoDay), { weekday: 'long', day: 'numeric', month: 'long' })}
         </time>
       </PageHeading>
-      <CaloriesCard goal={calorieGoal} consumed={meals.reduce((total, meal) => total + meal.kcal, 0)} />
-      <section className="panel meal-panel today-meals" aria-labelledby="today-meals">
-        <div className="panel-heading">
-          <h2 id="today-meals">{t('dailyMeals')}</h2>
-          <div className="food-quick-actions">
-            <AddRecordButton onClick={() => setOpen('new')}>{t('logMeal')}</AddRecordButton>
-            <Link className="button secondary" href={localePath(locale, '/comidas')}>{t('seeMeals')}</Link>
+      <div className="today-stack">
+        <CaloriesCard goal={calorieGoal} consumed={meals.reduce((total, meal) => total + meal.kcal, 0)} />
+        <section className="panel meal-panel today-meals" aria-labelledby="today-meals">
+          <div className="panel-heading">
+            <h2 id="today-meals">{t('dailyMeals')}</h2>
+            <div className="food-quick-actions">
+              <AddRecordButton onClick={() => setOpen('new')}>{t('logMeal')}</AddRecordButton>
+              <Link className="button secondary" href={localePath(locale, '/comidas')}>{t('seeMeals')}</Link>
+            </div>
           </div>
-        </div>
-        <MealList meals={meals} onSelect={setOpen} />
-      </section>
+          <MealList meals={meals} onSelect={setOpen} />
+        </section>
+      </div>
       {open && <MealDialog meal={open === 'new' ? undefined : open} onClose={() => setOpen(null)} />}
     </>
   );

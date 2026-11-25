@@ -3,13 +3,13 @@ import { getTranslations, setRequestLocale } from 'next-intl/server';
 import { RecipeDetail } from '@/features/recipe-book';
 import { isLocale } from '@/i18n/config';
 import { demoMode } from '@/lib/account';
-import { readRecipeFilter } from '@/lib/recipe-catalog';
+import { readRecipeView, recipeEntries } from '@/lib/recipe-catalog';
 import { loadRecipe } from '@/lib/recipe-data';
 import { isTrackingId } from '@/lib/tracking-fields';
 
 export default async function RecipePage({ params, searchParams }: {
   params: Promise<{ locale: string; id: string }>;
-  searchParams: Promise<{ intensidad?: string | string[] }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const { locale, id } = await params;
   if (!isLocale(locale)) notFound();
@@ -22,6 +22,9 @@ export default async function RecipePage({ params, searchParams }: {
     return <p className="panel section-panel" role="status">{t(data.state)}</p>;
   }
   if (!data.recipe) notFound();
-  return <RecipeDetail locale={locale} recipe={data.recipe} filter={readRecipeFilter(query.intensidad)}
+  const entry = recipeEntries(data.recipe).find(({ part, variant }) =>
+    part?.id === query.parte && (variant === undefined ? undefined : String(variant)) === query.variante);
+  if (!entry) notFound();
+  return <RecipeDetail locale={locale} recipe={data.recipe} entry={entry} view={readRecipeView(query)}
     selections={data.selections} fridgeReady={data.fridgeReady} log={data.log} />;
 }

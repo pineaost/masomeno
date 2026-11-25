@@ -6,7 +6,7 @@ import { useId, useOptimistic, useState, useTransition } from 'react';
 import { RecordDialog } from '@/components/tracking-ui';
 import type { Locale } from '@/i18n/config';
 import { localizedText } from '@/i18n/localized-text';
-import { matchesFoodName, type FoodAvailability } from '@/lib/food';
+import { foodSearchScore, type FoodAvailability } from '@/lib/food';
 import { ingredientNameKey, type FridgeFood, type FridgeSelection, type FridgeStatus, type PersonalFridgeIngredient } from '@/lib/recipe-catalog';
 import { deletePersonalIngredient, savePersonalIngredient, setFridgeIngredient, setPersonalIngredientStatus } from './food-actions';
 
@@ -50,7 +50,7 @@ export function FridgeControls({ locale, id, name, status }: {
   </div>;
 }
 
-type Ingredient = { id: string; name: string; category: { id: string; name: string }; match: boolean; personal: boolean };
+type Ingredient = { id: string; name: string; category: { id: string; name: string }; score: number; priority: number; personal: boolean };
 
 
 export function Fridge({ locale, foods, selections, personal, personalState }: {
@@ -82,16 +82,17 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
     ...foods.map((food) => ({
       id: food.id, name: localizedText(food.names, locale) ?? t('ingredientName'),
       category: { id: food.category.id, name: localizedText(food.category.names, locale) ?? t('category') },
-      match: matchesFoodName(food, query), personal: false,
+      score: foodSearchScore(food, query), priority: food.search_priority ?? 100, personal: false,
     })),
     ...personal.map((item) => ({
       id: item.id, name: item.name, category: { id: 'personal', name: t('personal') },
-      match: ingredientNameKey(item.name).includes(key), personal: true,
+      score: ingredientNameKey(item.name).includes(key) ? 8 : 0, priority: 100, personal: true,
     })),
   ].toSorted((a, b) => a.name.localeCompare(b.name, locale));
   const categories = new Map(foods.map(({ category: item }) => [item.id, localizedText(item.names, locale) ?? t('category')]));
   const available = ingredients.filter(({ id }) => marked.get(id) === 'available');
-  const matches = ingredients.filter(({ match }) => match);
+  const matches = ingredients.filter(({ score }) => score > 0);
+  if (key) matches.sort((a, b) => b.score - a.score || a.priority - b.priority);
   const results = matches.filter((item) => (!category || item.category.id === category) &&
     (!availableOnly || marked.get(item.id) === 'available'));
 

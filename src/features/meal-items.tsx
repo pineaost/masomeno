@@ -1,12 +1,14 @@
 'use client';
 
-import { Check, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronUp, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import type { Locale } from '@/i18n/config';
 import { localizedText } from '@/i18n/localized-text';
+import { catalogChoices } from '@/lib/catalog-search';
 import {
-  matchesFood, maxMealLines, preferredFoodUnit, quickFoodAmounts, usableFood, type CatalogFood, type FoodUnit, type Portion,
+  maxMealLines, packageFractionGrams, preferredFoodUnit, quickFoodAmounts, usableFood,
+  type CatalogFood, type FoodUnit, type Portion,
 } from '@/lib/food';
 import { foodDraftNutrition, type FoodDraft, type MealDraftItem } from '@/lib/meal-composition';
 import {
@@ -16,41 +18,57 @@ import { QuickAmounts, RecipeFields, RecipePicker } from './recipe-composer';
 
 export type ItemEdit = { index: number | null; draft: MealDraftItem };
 
-const preparationOrder = { cooked: 0, prepared: 1, raw: 2 };
-
 export function CatalogPicker({ catalog, locale, onSelect, onEstimate }: {
   catalog: CatalogFood[]; locale: Locale; onSelect: (food: CatalogFood) => void; onEstimate: (food: CatalogFood) => void;
 }) {
   const t = useTranslations('nutrition');
   const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const variantsId = useId();
   const foodName = (food: CatalogFood) => localizedText(food.food.names, locale) ?? t('food');
-  const groups = new Map<string, { title: string; foods: CatalogFood[] }>();
-  for (const food of catalog.filter((item) => matchesFood(item, query)).sort((a, b) =>
-    foodName(a).localeCompare(foodName(b), locale) || Number(usableFood(b)) - Number(usableFood(a)) ||
-    preparationOrder[a.preparation] - preparationOrder[b.preparation])) {
-    const category = food.food.category;
+  const choices = useMemo(() => catalogChoices(catalog, query, locale), [catalog, query, locale]);
+  const groups = new Map<string, { title: string; foods: typeof choices }>();
+  for (const choice of choices) {
+    const category = choice.primary.food.category;
     const group = groups.get(category.id) ?? { title: localizedText(category.names, locale) ?? t('food'), foods: [] };
-    group.foods.push(food);
+    group.foods.push(choice);
     groups.set(category.id, group);
   }
+  const foodButton = (food: CatalogFood, showVariant: boolean) =>
+    <button type="button" onClick={() => (usableFood(food) ? onSelect : onEstimate)(food)}>
+      <span><strong>{foodName(food)}</strong>
+        {(showVariant || food.is_estimate) && <small>
+          {showVariant && (localizedText(food.variant_names, locale) ?? t(food.preparation))}
+          {showVariant && food.is_estimate && ' · '}{food.is_estimate && t('estimate')}
+        </small>}
+      </span>
+      <small>{usableFood(food) ? t(preferredFoodUnit(food) === 'g' ? 'grams' : preferredFoodUnit(food) as Portion) : t('manual')}</small>
+    </button>;
 
   return <div className="food-catalog">
     <label className="search-field">
       <Search size={18} aria-hidden />
       <input type="search" aria-label={t('search')} placeholder={t('search')} value={query}
-        onChange={(event) => setQuery(event.target.value)}
+        onChange={(event) => { setQuery(event.target.value); setExpanded(null); }}
         onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }} />
     </label>
     {groups.size ? <div className="food-results">
       {[...groups].map(([id, { title, foods }]) => <section key={id}>
         <h3>{title}</h3>
-        <ul>{foods.map((food) => <li key={food.id}>
-          <button type="button" onClick={() => (usableFood(food) ? onSelect : onEstimate)(food)}>
-            <span><strong>{foodName(food)}</strong>
-              <small>{localizedText(food.variant_names, locale) ?? t(food.preparation)}{food.is_estimate && <> · {t('estimate')}</>}</small>
-            </span>
-            <small>{usableFood(food) ? t(preferredFoodUnit(food) === 'g' ? 'grams' : preferredFoodUnit(food) as Portion) : t('manual')}</small>
-          </button>
+        <ul>{foods.map(({ key, primary, variants }) => <li key={key}>
+          <div className="food-result-row">
+            {foodButton(primary, expanded === key || variants.some((variant) => variant.food.names.es === primary.food.names.es) ||
+              (query.trim() !== '' && Boolean(primary.variant_names)))}
+            {variants.length > 0 && <button type="button" className="food-variants-toggle"
+              aria-label={t('variantsOf', { food: foodName(primary) })} aria-expanded={expanded === key}
+              aria-controls={expanded === key ? variantsId : undefined}
+              onClick={() => setExpanded(expanded === key ? null : key)}>
+              {expanded === key ? <ChevronUp size={17} aria-hidden /> : <ChevronDown size={17} aria-hidden />}
+            </button>}
+          </div>
+          {expanded === key && <ul id={variantsId} className="food-variants">
+            {variants.map((food) => <li key={food.id}>{foodButton(food, true)}</li>)}
+          </ul>}
         </li>)}</ul>
       </section>)}
     </div> : <p className="empty-state" role="status">{t(catalog.length ? 'noResults' : 'emptyCatalog')}</p>}
@@ -63,6 +81,9 @@ export function HouseholdAmount({ food, amount, unit, grams, onChange, historica
 }) {
   const t = useTranslations('nutrition');
   const format = useFormatter();
+  const [netWeight, setNetWeight] = useState('');
+  const biscuit = food.food.category.id === 'biscuits';
+  const quickAmounts = biscuit && unit === 'unit' ? [1, 3, 6] : quickFoodAmounts(unit);
   const measures = new Set<FoodUnit>([
     ...(food.portion_unit ? [food.portion_unit] : []), ...Object.keys(food.additional_portions ?? {}) as Portion[],
     ...(historicalUnit && historicalUnit !== 'g' ? [historicalUnit] : []),
@@ -83,7 +104,28 @@ export function HouseholdAmount({ food, amount, unit, grams, onChange, historica
         </select>
       </label>}
     </div>
-    <QuickAmounts values={quickFoodAmounts(unit)} selected={Number(amount)} onChange={(value) => onChange(String(value), unit)} />
+    <QuickAmounts values={quickAmounts} selected={Number(amount)} onChange={(value) => onChange(String(value), unit)} />
+    {biscuit && <details className="recipe-options">
+      <summary>{t('packageFraction')}</summary>
+      <div className="meal-quantity-controls">
+        <label>{t('netPackageWeight')}
+          <input type="number" inputMode="decimal" min=".01" max="10000" step=".01" value={netWeight}
+            onChange={(event) => setNetWeight(event.target.value)} onKeyDown={(event) => {
+              if (event.key === 'Enter') event.preventDefault();
+            }} />
+        </label>
+        <div className="periods food-portions" role="group" aria-label={t('packageFraction')}>
+          {([0.25, 0.5] as const).map((fraction) => {
+            const weight = packageFractionGrams(netWeight, fraction);
+            return <button key={fraction} type="button" disabled={weight === null}
+              aria-pressed={weight !== null && unit === 'g' && Number(amount) === weight}
+              onClick={() => { if (weight !== null) onChange(String(weight), 'g'); }}>
+              {t(fraction === 0.25 ? 'quarterPackage' : 'halfPackage')}
+            </button>;
+          })}
+        </div>
+      </div>
+    </details>}
     <div className="food-line-note food-line-heading">
       {unit !== 'g' && grams !== undefined && <small>{t('estimatedWeight', { grams: format.number(grams, { maximumFractionDigits: 2 }) })}</small>}
       {food.source_url && <a className="text-link" href={food.source_url} target="_blank" rel="noreferrer">{t('source')}</a>}
@@ -152,6 +194,7 @@ export function MealItems({ locale, catalog, recipes, refs, items, edit, picking
     const estimate = food && draft.type === 'food' ? foodDraftNutrition(draft, food) : null;
     const result = mealItemValues(draft, refs, recipes);
     const name = itemName(draft);
+    const variant = localizedText(food?.variant_names, locale);
     const update = (item: MealDraftItem) => onEdit({ index, draft: item });
     function confirm() {
       const next = index === null ? [...items, draft] : items.map((item, i) => i === index ? draft : item);
@@ -162,7 +205,10 @@ export function MealItems({ locale, catalog, recipes, refs, items, edit, picking
     }
 
     return <section className="meal-item-editor" aria-label={name}>
-      <div className="food-line-heading"><h3 ref={heading} tabIndex={-1}>{name}</h3>{result && <strong>≈ {number(result.kcal)} kcal</strong>}</div>
+      <div className="food-line-heading">
+        <div><h3 ref={heading} tabIndex={-1}>{name}</h3>{variant && <small>{variant}</small>}</div>
+        {result && <strong>≈ {number(result.kcal)} kcal</strong>}
+      </div>
       {draft.type === 'food' && food && <HouseholdAmount food={food} grams={estimate?.grams} amount={draft.amount} unit={draft.unit}
         onChange={(amount, unit) => update({ ...draft, amount, unit })} />}
       {draft.type === 'recipe' && recipe && <RecipeFields recipe={recipe} draft={draft.recipe} refs={refs} locale={locale}

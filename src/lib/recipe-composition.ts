@@ -1,5 +1,6 @@
 import { portionCalories, totalCalories, type FoodNames, type FoodReference, type FoodUnit } from './food.ts';
 import { isTrackingId } from './tracking-fields.ts';
+import type { RecipeIntensity, RecipeKind } from './recipe-catalog.ts';
 
 export type RecipeIngredient = {
   food_id: string;
@@ -24,8 +25,11 @@ export type RecipeAlternative = {
 export type ReferenceIndex = ReadonlyMap<string, FoodReference>;
 export type IngredientChoice = number | 'default' | 'omit';
 export type IngredientChoices = ReadonlyMap<number, IngredientChoice>;
-export type RecipeVariation = { names: FoodNames; choices: Record<string, IngredientChoice> };
-export type RecipePart = { id: string; names: FoodNames; positions: number[] };
+export type RecipeVariation = { names: FoodNames; choices: Record<string, IngredientChoice>; instructions?: FoodNames };
+export type RecipePart = {
+  id: string; names: FoodNames; positions: number[];
+  intensity?: RecipeIntensity; minutes?: number; instructions?: FoodNames;
+};
 export type PreparationRole = 'main' | 'side';
 export const maxRecipeGroups = 8;
 
@@ -45,6 +49,7 @@ export type RecipeForLog = {
   alternatives: RecipeAlternative[];
   variants?: RecipeVariation[];
   parts?: RecipePart[];
+  kind?: RecipeKind;
   purchase_unit?: 'slice' | 'unit' | null;
 };
 export type PreparationInput = {
@@ -129,6 +134,10 @@ export function recipePart(recipe: RecipeForLog, draft: RecipeDraft) {
   return recipe.parts?.find(({ id }) => id === draft.part);
 }
 
+export function recipeIngredients(recipe: RecipeForLog, part?: RecipePart) {
+  return part ? recipe.ingredients.filter(({ position }) => part.positions.includes(position)) : recipe.ingredients;
+}
+
 export function draftRecipeName(recipe: RecipeForLog, draft: RecipeDraft) {
   return recipePart(recipe, draft)?.names ?? recipeVariation(recipe, draft)?.names ?? recipe.names;
 }
@@ -136,7 +145,7 @@ export function draftRecipeName(recipe: RecipeForLog, draft: RecipeDraft) {
 export function resolveRecipeDraft(recipe: RecipeForLog, draft: RecipeDraft, references: ReferenceIndex) {
   const part = recipePart(recipe, draft);
   if (draft.part && !part) return null;
-  const ingredients = part ? recipe.ingredients.filter(({ position }) => part.positions.includes(position)) : recipe.ingredients;
+  const ingredients = recipeIngredients(recipe, part);
   const choices = new Map(Object.entries(draft.choices).map(([position, choice]) => [Number(position), choice]));
   const quantities = new Map(Object.entries(draft.quantities).map(([position, amount]) => [Number(position), amount]));
   const weights = new Map(Object.entries(draft.weights ?? {}).map(([position, weight]) => [Number(position), weight]));

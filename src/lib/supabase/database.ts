@@ -78,7 +78,7 @@ export type Database = {
         Relationships: [];
       };
       foods: {
-        Row: { id: string; category_id: string; names: FoodNames; synonyms: string[] };
+        Row: { id: string; category_id: string; names: FoodNames; synonyms: string[]; browse_parent?: string | null; search_priority?: number };
         Insert: never;
         Update: never;
         Relationships: [{
@@ -129,7 +129,7 @@ export type Database = {
         Relationships: [];
       };
       recipes: {
-        Row: RecipeSummary & Pick<RecipeForLog, 'base_servings' | 'variants' | 'purchase_unit' | 'parts'> & {
+        Row: RecipeSummary & Pick<RecipeForLog, 'base_servings' | 'variants' | 'purchase_unit' | 'parts' | 'kind'> & {
           instructions: Partial<FoodNames>; published: boolean;
         };
         Insert: never;

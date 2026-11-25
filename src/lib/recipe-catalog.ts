@@ -1,9 +1,45 @@
-import type { FoodNames } from './food.ts';
-import type { RecipeForLog } from './recipe-composition.ts';
+import { foodSearchScore, type FoodNames } from './food.ts';
+import { recipeChoice, recipeIngredients, type RecipeDraft, type RecipeForLog, type RecipePart } from './recipe-composition.ts';
 
 export const recipeIntensities = ['light', 'medium', 'hearty', 'extraHearty'] as const;
 export type RecipeIntensity = (typeof recipeIntensities)[number];
 export type RecipeFilter = 'all' | RecipeIntensity;
+export const recipeKinds = ['dish', 'preparation', 'snack'] as const;
+export type RecipeKind = (typeof recipeKinds)[number];
+
+export type RecipeView = { filter: RecipeFilter; kind: RecipeKind | 'all'; query: string };
+export type RecipeEntry = { names: FoodNames; kind: RecipeKind; part?: RecipePart; variant?: number };
+
+export function readRecipeView(params: Record<string, string | string[] | undefined>): RecipeView {
+  return {
+    filter: readRecipeFilter(params.intensidad),
+    kind: recipeKinds.find((kind) => kind === params.tipo) ?? 'all',
+    query: typeof params.q === 'string' ? params.q.trim().slice(0, 100) : '',
+  };
+}
+
+export function recipeEntries(recipe: RecipeForLog): RecipeEntry[] {
+  const kind = recipe.kind ?? 'dish';
+  return [
+    { names: recipe.names, kind },
+    ...(recipe.parts ?? []).map((part) => ({ names: part.names, kind: 'preparation' as const, part })),
+    ...(recipe.variants ?? []).map(({ names }, variant) => ({ names, kind, variant })),
+  ];
+}
+
+export function recipeEntryKey(recipeId: string, entry: RecipeEntry) {
+  return entry.part ? `${recipeId}/part/${entry.part.id}` : `${recipeId}/${entry.variant ?? ''}`;
+}
+
+export function recipeEntryDraft(recipe: RecipeForLog, { part, variant }: RecipeEntry): RecipeDraft {
+  const choices = variant === undefined ? {} : recipe.variants?.[variant]?.choices ?? {};
+  return { recipeId: recipe.id, servings: 1, choices, quantities: {}, part: part?.id };
+}
+
+export function recipeEntryScore(entry: RecipeEntry, recipe: RecipeForLog, query: string) {
+  const score = foodSearchScore({ names: entry.names, synonyms: [] }, query);
+  return score || (entry.part && foodSearchScore({ names: recipe.names, synonyms: [] }, query) ? 1 : 0);
+}
 
 export function readRecipeFilter(value: unknown): RecipeFilter {
   return recipeIntensities.find((intensity) => intensity === value) ?? 'all';
@@ -20,6 +56,7 @@ export type FridgeStatus = 'available' | 'unavailable';
 export type FridgeSelection = { food_id: string; status: FridgeStatus };
 export type PersonalFridgeIngredient = { id: string; name: string; status: FridgeStatus | null };
 export type FridgeFood = {
+  search_priority?: number;
   id: string;
   names: FoodNames;
   synonyms: string[];
@@ -50,16 +87,20 @@ export function ingredientAvailability(ingredients: { food_id: string }[], selec
   return { available, unavailable, unknown: ids.size - available - unavailable, total: ids.size };
 }
 
-export function recipeAvailability(recipe: RecipeForLog, selections: FridgeSelection[]) {
+export function recipeAvailability(recipe: RecipeForLog, selections: FridgeSelection[], entry?: RecipeEntry) {
   const selected = new Map(selections.map(({ food_id, status }) => [food_id, status]));
-  const required = recipe.purchase_unit ? [] : recipe.ingredients.filter(({ is_optional, optional_default }) => !is_optional || optional_default);
+  const choices = entry ? recipeEntryDraft(recipe, entry).choices : {};
+  const required = recipe.purchase_unit ? [] : recipeIngredients(recipe, entry?.part)
+    .filter((ingredient) => recipeChoice(ingredient, choices[ingredient.position]) !== 'omit');
   let available = 0;
   let unavailable = 0;
   for (const ingredient of required) {
-    const options = [ingredient.food_id, ...recipe.alternatives.filter(({ ingredient_position }) =>
-      ingredient_position === ingredient.position).map(({ food_id }) => food_id)];
+    const alternatives = recipe.alternatives.filter(({ ingredient_position }) => ingredient_position === ingredient.position);
+    const choice = choices[ingredient.position];
+    const options = typeof choice === 'number' ? alternatives.filter(({ position }) => position === choice).map(({ food_id }) => food_id)
+      : [ingredient.food_id, ...alternatives.map(({ food_id }) => food_id)];
     if (options.some((id) => selected.get(id) === 'available')) available++;
-    else if (options.every((id) => selected.get(id) === 'unavailable')) unavailable++;
+    else if (options.length && options.every((id) => selected.get(id) === 'unavailable')) unavailable++;
   }
   return { available, unavailable, unknown: required.length - available - unavailable, total: required.length };
 }

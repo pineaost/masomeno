@@ -5,10 +5,11 @@ import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { Locale } from '@/i18n/config';
 import { localizedText } from '@/i18n/localized-text';
-import { matchesFoodName, type CatalogFood } from '@/lib/food';
-import { recipeChoice, recipePart, recipeVariation, type IngredientChoice, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
+import type { CatalogFood } from '@/lib/food';
+import { recipeEntries, recipeEntryDraft, recipeEntryKey, recipeEntryScore, recipeKinds } from '@/lib/recipe-catalog';
+import { recipeChoice, recipeIngredients, recipePart, recipeVariation, type IngredientChoice, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
 
-export function recipeDraft(recipeId: string, part?: string): RecipeDraft {
+function recipeDraft(recipeId: string, part?: string): RecipeDraft {
   return { recipeId, part, servings: 1, choices: {}, quantities: {} };
 }
 
@@ -31,15 +32,10 @@ export function RecipePicker({ recipes, locale, select }: {
 }) {
   const t = useTranslations('recipes');
   const [query, setQuery] = useState('');
-  const results = recipes.flatMap((recipe) => {
-    const title = localizedText(recipe.names, locale) ?? t('untitled');
-    const parentMatches = matchesFoodName({ names: recipe.names, synonyms: [] }, query);
-    return [
-      ...(parentMatches ? [{ title, parent: null, draft: recipeDraft(recipe.id) }] : []),
-      ...(recipe.parts ?? []).filter(({ names }) => parentMatches || matchesFoodName({ names, synonyms: [] }, query))
-        .map(({ id, names }) => ({ title: localizedText(names, locale) ?? title, parent: title, draft: recipeDraft(recipe.id, id) })),
-    ];
-  }).sort((a, b) => a.title.localeCompare(b.title, locale));
+  const results = recipes.flatMap((recipe) => recipeEntries(recipe).map((entry) => ({
+    recipe, entry, score: recipeEntryScore(entry, recipe, query), title: localizedText(entry.names, locale) ?? t('untitled'),
+  }))).filter(({ score }) => score > 0).sort((a, b) => b.score - a.score || a.title.localeCompare(b.title, locale));
+  const sections = query.trim() ? [undefined] : recipeKinds;
   return <div className="food-catalog">
     <label className="search-field">
       <Search size={17} aria-hidden />
@@ -47,10 +43,17 @@ export function RecipePicker({ recipes, locale, select }: {
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={(event) => { if (event.key === 'Enter') event.preventDefault(); }} />
     </label>
-    {results.length ? <div className="food-results"><ul>{results.map(({ title, parent, draft }) =>
-      <li key={draft.recipeId + (draft.part ?? '')}><button type="button" onClick={() => select(draft)}>
-        <span><strong>{title}</strong>{parent && <small>{t('partOf', { recipe: parent })}</small>}</span>
-      </button></li>)}</ul></div> : <p className="empty-state" role="status">{t('noResults')}</p>}
+    {results.length ? <div className="food-results">{sections.map((kind) => {
+      const options = kind ? results.filter(({ entry }) => entry.kind === kind) : results;
+      return options.length > 0 && <section key={kind ?? 'all'}>
+        {kind && <h3>{t(`kinds.${kind}`)}</h3>}
+        <ul>{options.map(({ title, entry, recipe }) => <li key={recipeEntryKey(recipe.id, entry)}>
+          <button type="button" onClick={() => select(recipeEntryDraft(recipe, entry))}>
+            <span><strong>{title}</strong>{entry.part && <small>{t('partOf', { recipe: localizedText(recipe.names, locale) ?? t('untitled') })}</small>}</span>
+          </button>
+        </li>)}</ul>
+      </section>;
+    })}</div> : <p className="empty-state" role="status">{t('noResults')}</p>}
   </div>;
 }
 
@@ -64,7 +67,7 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
   const variant = recipeVariation(recipe, draft);
   const variants = part ? [] : recipe.variants ?? [];
   const hasEdits = Object.keys(draft.choices).length > 0 || Object.keys(draft.quantities).length > 0 || Object.keys(draft.weights ?? {}).length > 0;
-  const slots = recipe.ingredients.filter(({ position }) => !part || part.positions.includes(position)).toSorted((a, b) => a.position - b.position);
+  const slots = recipeIngredients(recipe, part).toSorted((a, b) => a.position - b.position);
 
   function changeWeight(position: number, value: string) {
     const weights = { ...draft.weights };
@@ -75,7 +78,7 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
 
   return <>
     <div className="meal-quantity-controls">
-      <label>{recipe.purchase_unit ? t(recipe.purchase_unit) : n('servingCount')}
+      <label>{recipe.purchase_unit === 'slice' ? t('slice') : recipe.purchase_unit === 'unit' ? n('unit') : n('servingCount')}
         <input type="number" min=".01" max="1000" step=".01" inputMode="decimal"
           value={draft.servings || ''} onChange={(event) => update({ ...draft, servings: Number(event.target.value) })} />
       </label>
@@ -120,8 +123,10 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
               const value = event.target.value;
               const choice: IngredientChoice = value === 'omit' || value === 'default' ? value : Number(value);
               const weights = { ...draft.weights };
+              const quantities = { ...draft.quantities };
               delete weights[slot.position];
-              update({ ...draft, choices: { ...draft.choices, [slot.position]: choice }, weights });
+              delete quantities[slot.position];
+              update({ ...draft, choices: { ...draft.choices, [slot.position]: choice }, weights, quantities });
             }}>
               <option value="default">{label}</option>
               {alternatives.map(({ position, food_id, food_reference_id, grams }) => {
@@ -136,7 +141,8 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
               {slot.is_optional && <option value="omit">{t('omit')}</option>}
             </select>
           </label>}
-          {selected !== 'omit' && (slot.adjustable_quantity ? <label>{t('ingredientCount', { food: localizedText(activeRef?.food.names, locale) ?? label })}
+          {selected !== 'omit' && (slot.adjustable_quantity && activeRef?.portion_unit ? <label>
+            {t('ingredientCount', { food: localizedText(activeRef.food.names, locale) ?? label })} · {t(`measures.${activeRef.portion_unit}`)}
             <input type="number" inputMode="decimal" min=".01" max="1000" step=".01"
               value={quantity ?? (defaultCount || '')}
               onChange={(event) => update({ ...draft, quantities: { ...draft.quantities, [slot.position]: Number(event.target.value) } })} />
