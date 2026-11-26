@@ -7,9 +7,9 @@ import { Dialog } from '@/components/dialog';
 import { PageHeading } from '@/components/page-heading';
 import { AddRecordButton, EditRecordButton, RecordChart, RecordDialog } from '@/components/tracking-ui';
 import type { Locale } from '@/i18n/config';
-import { localFormDateTime, monthsBefore } from '@/lib/dates';
+import { localFormDateTime } from '@/lib/dates';
 import type { WeightMeasurement } from '@/lib/supabase/database';
-import { weightPoints, weightSummary } from '@/lib/tracking';
+import { weightPeriod, weightSummary } from '@/lib/tracking';
 import { displayWeight, type WeightUnit } from '@/lib/units';
 import { deleteWeighIn, saveWeighIn, saveWeightGoal } from './tracking-actions';
 
@@ -40,21 +40,14 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
   const [modal, setModal] = useState<WeightMeasurement | 'new' | 'goal' | null>(null);
   const [entryTime, setEntryTime] = useState(now);
   const summary = weightSummary(records);
-  const currentDateTime = localFormDateTime(now, timeZone);
-  const today = currentDateTime.slice(0, 10);
-  const cutoff = months ? monthsBefore(today, months) : null;
-  const localDay = (value: string) => localFormDateTime(value, timeZone).slice(0, 10);
-  const chart = weightPoints(cutoff === null ? records : records.filter((record) => localDay(record.measured_at) >= cutoff), timeZone);
+  const { points: chart, change } = weightPeriod(records, months, now, timeZone);
   const recent = records.slice(-3).reverse();
   const date = (value: string) => format.dateTime(new Date(value), { timeZone, day: 'numeric', month: 'short', year: 'numeric' });
   const dateTime = (value: string) => format.dateTime(new Date(value), { timeZone, dateStyle: 'medium', timeStyle: 'short' });
+  const periodDate = change && date(change.from) === date(change.to) ? dateTime : date;
   const number = (kg: number, signed = false) => format.number(displayWeight(kg, unit), {
     maximumFractionDigits: 2, signDisplay: signed ? 'exceptZero' : 'auto',
   });
-  const stats = [
-    { key: 'initial', kg: summary?.first }, { key: 'current', kg: summary?.current },
-    { key: 'target', kg: goal }, { key: 'change', kg: summary?.change },
-  ] as const;
   const entry = typeof modal === 'object' ? modal : null;
   const close = () => { setModal(null); setRemoving(false); };
 
@@ -85,18 +78,31 @@ export function LiveWeight({ locale, records, goal, timeZone, unit, now }: Props
           setModal('new');
         }}>{home('logWeight')}</AddRecordButton>
       </PageHeading>
-      <dl className="stat-grid">
-        {stats.map(({ key, kg }) => (
-          <div className="panel stat" key={key}>
-            <dt>{t(key)}</dt>
-            <dd>{kg == null ? '—' : <>{number(kg, key === 'change')} <small>{unit}</small></>}</dd>
-            {key === 'target' && (
-              <button className="text-link" type="button" onClick={() => setModal('goal')}>
-                {tracking(goal === null ? 'setGoal' : 'editGoal')}
-              </button>
-            )}
-          </div>
-        ))}
+      <dl className="stat-grid weight-stats">
+        <div className="panel stat">
+          <dt>{t('current')}</dt>
+          <dd>{summary ? <>{number(summary.current)} <small>{unit}</small></> : '—'}</dd>
+        </div>
+        <div className="panel stat" aria-live="polite">
+          <dt>{t('periodChange')}</dt>
+          <dd>{change ? <>{number(change.kg, true)} <small>{unit}</small></> : <small>{t('insufficient')}</small>}</dd>
+          {change && <dd className="weight-stat-detail">{t('changeDates', {
+            from: periodDate(change.from), to: periodDate(change.to),
+          })}</dd>}
+        </div>
+        <div className="panel stat weight-stat-secondary">
+          <dt>{t('initial')}</dt>
+          <dd>{summary ? `${number(summary.first)} ${unit}` : '—'}</dd>
+          <dt>{t('change')}</dt>
+          <dd>{records.length >= 2 && summary ? `${number(summary.change, true)} ${unit}` : '—'}</dd>
+        </div>
+        <div className="panel stat weight-stat-secondary">
+          <dt>{t('target')}</dt>
+          <dd>{goal === null ? '—' : `${number(goal)} ${unit}`}</dd>
+          <dd><button className="text-link" type="button" onClick={() => setModal('goal')}>
+            {tracking(goal === null ? 'setGoal' : 'editGoal')}
+          </button></dd>
+        </div>
       </dl>
       <section className="panel section-panel">
         <div className="panel-heading">

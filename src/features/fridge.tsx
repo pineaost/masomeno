@@ -1,10 +1,11 @@
 'use client';
 
+import Link from 'next/link';
 import { Pencil, Plus, Search } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useOptimistic, useState, useTransition } from 'react';
 import { RecordDialog } from '@/components/tracking-ui';
-import type { Locale } from '@/i18n/config';
+import { localePath, type Locale } from '@/i18n/config';
 import { localizedText } from '@/i18n/localized-text';
 import { foodSearchScore, type FoodAvailability } from '@/lib/food';
 import { ingredientNameKey, type FridgeFood, type FridgeSelection, type FridgeStatus, type PersonalFridgeIngredient } from '@/lib/recipe-catalog';
@@ -53,12 +54,13 @@ export function FridgeControls({ locale, id, name, status }: {
 type Ingredient = { id: string; name: string; category: { id: string; name: string }; score: number; priority: number; personal: boolean };
 
 
-export function Fridge({ locale, foods, selections, personal, personalState }: {
+export function Fridge({ locale, foods, selections, personal, personalState, recipeCount }: {
   locale: Locale;
   foods: FridgeFood[];
   selections: FridgeSelection[];
   personal: PersonalFridgeIngredient[];
   personalState: FoodAvailability;
+  recipeCount: number | null;
 }) {
   const t = useTranslations('fridge');
   const [query, setQuery] = useState('');
@@ -130,6 +132,13 @@ export function Fridge({ locale, foods, selections, personal, personalState }: {
         <button type="button" aria-pressed={!availableOnly} onClick={() => setAvailableOnly(false)}>{t('allFoods')}</button>
         <button type="button" aria-pressed={availableOnly} onClick={() => setAvailableOnly(true)}>{t('onlyAvailable')}</button>
       </div>
+    </div>
+    <div className="fridge-recipes">
+      <p className="section-copy" role="status">{t(busy ? 'checkingRecipes' : recipeCount === null ? 'recipesUnavailable'
+        : recipeCount > 0 ? 'recipeCount' : available.length ? 'noRecipeMatches' : 'markForRecipes',
+        { count: recipeCount ?? 0 })}</p>
+      {!busy && recipeCount !== null && recipeCount > 0 && <Link className="button secondary"
+        href={localePath(locale, '/comidas/recetario') + '?disponibles=1'} prefetch={false}>{t('viewRecipes')}</Link>}
     </div>
     {results.length ? <ul className="fridge-results">
       {results.map((item) => {

@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, Dumbbell, Footprints, Star } from 'lucide-react';
+import { ChevronRight, Dumbbell, Footprints, Plus, Star } from 'lucide-react';
 import Link from 'next/link';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -10,7 +10,7 @@ import { localePath, type Locale } from '@/i18n/config';
 import type { Exercise, StrengthEntry, TreadmillSession } from '@/lib/supabase/database';
 import { orderExercises, recentRuns, strengthSummary } from '@/lib/tracking';
 import { displayWeight, type DistanceUnit, type WeightUnit } from '@/lib/units';
-import { ExerciseForm, TreadmillForm } from './training-forms';
+import { ExerciseForm, StrengthForm, TreadmillForm } from './training-forms';
 
 export function StrengthStats({ entries, unit }: { entries: StrengthEntry[]; unit: WeightUnit }) {
   const gym = useTranslations('gym');
@@ -33,9 +33,11 @@ export function StrengthStats({ entries, unit }: { entries: StrengthEntry[]; uni
   );
 }
 
+type ListedExercise = Exercise & { latest: Pick<StrengthEntry, 'load_kg' | 'repetitions'> | null };
+
 export function LiveGym({ locale, exercises, runs, timeZone, weightUnit, distanceUnit }: {
   locale: Locale;
-  exercises: (Exercise & { latest: Pick<StrengthEntry, 'load_kg' | 'repetitions'> | null })[];
+  exercises: ListedExercise[];
   runs: TreadmillSession[];
   timeZone: string;
   weightUnit: WeightUnit;
@@ -45,7 +47,7 @@ export function LiveGym({ locale, exercises, runs, timeZone, weightUnit, distanc
   const t = useTranslations('training');
   const gym = useTranslations('gym');
   const format = useFormatter();
-  const [modal, setModal] = useState<'exercise' | 'run' | null>(null);
+  const [modal, setModal] = useState<'exercise' | 'run' | ListedExercise | null>(null);
   const close = () => setModal(null);
   const recent = recentRuns(runs, distanceUnit);
   const speed = (value: number, signDisplay: Intl.NumberFormatOptions['signDisplay'] = 'auto') =>
@@ -81,11 +83,18 @@ export function LiveGym({ locale, exercises, runs, timeZone, weightUnit, distanc
               </span>}
               <ChevronRight size={17} aria-hidden />
             </Link>
+            {exercise.favorite_slot !== null && <button type="button" className="icon-button"
+              title={t('newLoadFor', { name: exercise.name })}
+              aria-label={t('newLoadFor', { name: exercise.name })} onClick={() => setModal(exercise)}>
+              <Plus size={18} aria-hidden />
+            </button>}
           </li>)}
         </ul> : <p className="empty-state">{t('noExercises')}</p>}
       </section>
     </div>
     {modal === 'exercise' && <ExerciseForm locale={locale} close={close} />}
+    {modal && typeof modal === 'object' && <StrengthForm locale={locale} exercise={modal} unit={weightUnit}
+      timeZone={timeZone} latest={modal.latest} close={close} />}
     {modal === 'run' && <TreadmillForm locale={locale} unit={distanceUnit} timeZone={timeZone} close={close} />}
   </>;
 }

@@ -25,26 +25,38 @@ export function ExerciseForm({ locale, exercise, close, remove }: {
   );
 }
 
-export function StrengthForm({ locale, exercise, unit, timeZone, entry, close }: {
+export function StrengthForm({ locale, exercise, unit, timeZone, entry, latest, close }: {
+  latest?: Pick<StrengthEntry, 'load_kg' | 'repetitions'> | null;
   locale: Locale; exercise: Exercise; unit: WeightUnit; timeZone: string; entry?: StrengthEntry; close: () => void;
 }) {
   const t = useTranslations('training');
   const weight = useTranslations('weight');
   const format = useFormatter();
+  const formatLoad = (kg: number) => format.number(displayWeight(kg, unit), {
+    useGrouping: false, maximumFractionDigits: 5,
+  });
+  const [load, setLoad] = useState(() => entry ? formatLoad(entry.load_kg) : '');
+  const [repetitions, setRepetitions] = useState(() => String(entry?.repetitions ?? ''));
   const [today] = useState(() => localFormDateTime(new Date().toISOString(), timeZone).slice(0, 10));
   return (
-    <RecordDialog title={t(entry ? 'editLoad' : 'newLoad')} close={close}
+    <RecordDialog title={entry ? t('editLoad') : t('newLoadFor', { name: exercise.name })} close={close}
       save={saveStrength.bind(null, locale, exercise.id, entry?.id ?? null, unit)}
       remove={entry ? deleteStrength.bind(null, locale, exercise.id, entry.id) : undefined}>
+      {!entry && latest && <div>
+        <button type="button" className="button secondary" onClick={() => {
+          setLoad(formatLoad(latest.load_kg));
+          setRepetitions(String(latest.repetitions ?? ''));
+        }}>{t('useLatestLoad')}</button>
+      </div>}
       <label>
         {t('load', { unit })}
         <input name="load" type="text" inputMode="decimal" maxLength={16} required
-          defaultValue={entry ? format.number(displayWeight(entry.load_kg, unit), { useGrouping: false, maximumFractionDigits: 5 }) : undefined} />
+          value={load} onChange={(event) => setLoad(event.target.value)} />
       </label>
       <label>
         {t('repetitionsInput')}
         <input name="repetitions" type="number" inputMode="numeric" min="1" max="999" step="1"
-          defaultValue={entry?.repetitions ?? undefined} />
+          value={repetitions} onChange={(event) => setRepetitions(event.target.value)} />
       </label>
       <label>
         {weight('date')}

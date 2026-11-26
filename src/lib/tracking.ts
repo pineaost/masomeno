@@ -1,4 +1,4 @@
-import { localFormDateTime } from './dates.ts';
+import { localFormDateTime, monthsBefore } from './dates.ts';
 import { displayDistance, type DistanceUnit } from './units.ts';
 import type { StrengthEntry, TreadmillSession, WeightMeasurement } from './supabase/database';
 
@@ -36,6 +36,19 @@ export function weightPoints(records: WeightMeasurement[], timeZone = 'UTC') {
   return observations.map(({ day, value, localDay }) => ({
     day, value, trend: trends.size >= 2 ? trends.get(localDay) : undefined,
   }));
+}
+
+export function weightPeriod(records: WeightMeasurement[], months: number, now: string, timeZone: string) {
+  const today = localFormDateTime(now, timeZone).slice(0, 10);
+  const cutoff = months ? monthsBefore(today, months) : null;
+  const points = weightPoints(cutoff === null ? records : records.filter(({ measured_at }) =>
+    localFormDateTime(measured_at, timeZone).slice(0, 10) >= cutoff), timeZone);
+  const first = points[0];
+  const last = points.at(-1);
+  return {
+    points,
+    change: first && last && points.length >= 2 ? { kg: last.value - first.value, from: first.day, to: last.day } : null,
+  };
 }
 
 export function strengthSummary(records: StrengthEntry[]) {

@@ -417,6 +417,11 @@ test('los ingredientes personales y las repeticiones respetan cuentas y registro
   await db.query('update public.strength_entries set repetitions=8 where id=$1', [old]);
   assert.deepEqual((await db.query('select repetitions from public.strength_entries where id=$1', [old])).rows, [{ repetitions: 8 }]);
   await assert.rejects(db.query('update public.strength_entries set repetitions=0 where id=$1', [old]), { code: '23514' });
+  await db.query("insert into public.strength_entries(exercise_id,load_kg,repetitions,performed_on) values ($1,42,10,'2020-01-03')", [exercise]);
+  assert.deepEqual((await db.query(
+    'select load_kg::float as load, repetitions from public.strength_entries where exercise_id=$1 order by performed_on', [exercise],
+  )).rows, [{ load: 40, repetitions: 8 }, { load: 42, repetitions: 10 }]);
+
 
   const add = (name) => db.query('insert into public.personal_fridge_ingredients (name) values ($1) returning id,name,status', [name]);
   const personal = (await add('Almendras  tostadas')).rows[0];
@@ -1031,7 +1036,7 @@ test('el recetario ampliado publica platos, partes y variantes completas con reg
   assert.deepEqual(groups.map(({ ingredients }) => ingredients.map(({ referenceId }) => referenceId)),
     [['strip-steak-cooked'], ['carrot-raw', 'egg-cooked', 'olive-oil-prepared']]);
   assert.deepEqual(recipeAvailability(steak, [{ food_id: 'carrot', status: 'available' }, { food_id: 'strip-steak', status: 'unavailable' }], carrotEntry),
-    { available: 1, unavailable: 0, unknown: 2, total: 3 });
+    { available: 1, unavailable: 0, unknown: 2, total: 3, substitutions: [] });
 
   const yogurt = recipeIndex.get(id(302));
   const modified = resolveRecipeDraft(yogurt, { ...recipeEntryDraft(yogurt, recipeEntries(yogurt)[0]),

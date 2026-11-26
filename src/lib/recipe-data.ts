@@ -4,7 +4,7 @@ import type { Locale } from '@/i18n/config';
 import { requireAccount } from '@/lib/account';
 import { loginPath } from '@/lib/auth-paths';
 import { foodAvailability, foodSession, loadFoodRegistration } from '@/lib/food-data';
-import { recipeEntries, recipeEntryDraft } from '@/lib/recipe-catalog';
+import { readinessPriority, recipeAvailability, recipeEntries, recipeEntryDraft, type FridgeSelection } from '@/lib/recipe-catalog';
 import { preparationNutrition, resolveRecipeDraft } from '@/lib/recipe-composition';
 import { readFoodCatalog, readRecipeCatalog } from '@/lib/recipe-queries';
 import { requestSupabase } from '@/lib/supabase/server';
@@ -29,7 +29,12 @@ export async function loadFridge(locale: Locale) {
     listFridge(session),
     session.supabase.from('personal_fridge_ingredients').select('id,name,status').eq('user_id', session.id).order('id'),
   ]);
+  const marked = selections.data ?? [];
+  const matches = !selections.error && marked.some(({ status }) => status === 'available')
+    ? await loadRecipeEntries(session, marked) : null;
   return {
+    recipeCount: matches && matches.state !== 'ready' ? null
+      : matches?.entries.filter(({ availability }) => readinessPriority(availability) === 2).length ?? 0,
     state: foodAvailability([foods.error, selections.error]),
     foods: foods.data ?? [],
     selections: selections.data ?? [],
@@ -38,21 +43,26 @@ export async function loadFridge(locale: Locale) {
   };
 }
 
-export async function loadRecipes(locale: Locale) {
-  const session = await recipeSession(locale);
-  const [recipes, fridge, catalog] = await Promise.all([
-    readRecipeCatalog(session.supabase), listFridge(session), readFoodCatalog(session.supabase),
-  ]);
+async function loadRecipeEntries({ supabase }: Session, selections: FridgeSelection[]) {
+  const [recipes, catalog] = await Promise.all([readRecipeCatalog(supabase), readFoodCatalog(supabase)]);
   const references = new Map(catalog.data?.map((ref) => [ref.id, ref]));
+  const foodNames = Object.fromEntries((catalog.data ?? []).map((ref) => [ref.food_id, ref.food.names]));
   return {
     state: foodAvailability([catalog.error, ...recipes.errors]),
     entries: recipes.data.flatMap((recipe) => recipeEntries(recipe).flatMap((entry) => {
       const lines = resolveRecipeDraft(recipe, recipeEntryDraft(recipe, entry), references);
       const nutrition = lines && preparationNutrition(lines, references);
-      return nutrition ? [{ recipe, entry, kcal: nutrition.kcal }] : [];
+      return nutrition ? [{ recipe, entry, kcal: nutrition.kcal,
+        availability: recipeAvailability(recipe, selections, entry, references) }] : [];
     })),
-    selections: fridge.data ?? [],
+    foodNames,
   };
+}
+
+export async function loadRecipes(locale: Locale) {
+  const session = await recipeSession(locale);
+  const fridge = await listFridge(session);
+  return { ...await loadRecipeEntries(session, fridge.data ?? []), fridgeReady: !fridge.error };
 }
 
 export async function loadRecipe(locale: Locale, id: string) {

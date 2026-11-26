@@ -16,6 +16,6 @@ export default async function RecipesPage({ params, searchParams }: ScreenParams
 
   const view = readRecipeView(await searchParams);
   const demo = demoMode();
-  const data = demo ? { state: 'ready' as const, entries: [], selections: [] } : await loadRecipes(locale);
+  const data = demo ? { state: 'ready' as const, entries: [], foodNames: {}, fridgeReady: false } : await loadRecipes(locale);
   return <RecipeBook locale={locale} view={view} demo={demo} {...data} />;
 }

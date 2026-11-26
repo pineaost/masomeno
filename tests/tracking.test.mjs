@@ -5,7 +5,7 @@ import { localFormDateTime } from '../src/lib/dates.ts';
 import {
   measuredInstant, parseExerciseName, parseStrength, parseTreadmill, parseWeighIn, parseWeightGoal,
 } from '../src/lib/tracking-fields.ts';
-import { orderExercises, clockDuration, nextFavoriteSlot, recentRuns, runMetrics, strengthSummary, weightPoints, weightSummary } from '../src/lib/tracking.ts';
+import { orderExercises, clockDuration, nextFavoriteSlot, recentRuns, runMetrics, strengthSummary, weightPeriod, weightPoints, weightSummary } from '../src/lib/tracking.ts';
 import { displayDistance, displayWeight, distanceInKm } from '../src/lib/units.ts';
 
 const now = new Date('2026-11-24T12:30:00Z');
@@ -135,4 +135,22 @@ test('ordena destacados primero dentro del mismo listado y el resto por nombre',
   ];
   assert.deepEqual(orderExercises(exercises, 'es').map(({ id }) => id), ['d', 'b', 'c', 'a']);
   assert.deepEqual(exercises.map(({ id }) => id), ['a', 'b', 'c', 'd']);
+});
+
+test('el cambio del período usa los extremos del gráfico en el día local', () => {
+  const records = [
+    ['2026-05-25T15:00:00Z', 84], ['2026-08-25T15:00:00Z', 82],
+    ['2026-10-26T02:59:00Z', 80], ['2026-11-23T13:00:00Z', 79],
+  ].map(([measured_at, weight_kg]) => ({ measured_at, weight_kg }));
+  const today = '2026-11-26T02:00:00Z';
+  for (const [months, expected] of [[1, -1], [3, -3], [6, -5], [0, -5]]) {
+    const { points, change } = weightPeriod(records, months, today, zone);
+    assert.deepEqual(change, { kg: expected, from: points[0].day, to: points.at(-1).day });
+  }
+  assert.equal(weightPeriod(records, 1, today, 'UTC').change.kg, -1);
+  assert.deepEqual(weightPeriod(records.slice(0, 2), 1, today, zone), { points: [], change: null });
+  assert.equal(weightPeriod(records.slice(-1), 1, today, zone).change, null);
+  const edge = [{ measured_at: '2026-10-25T23:00:00Z', weight_kg: 81 }, records.at(-1)];
+  assert.equal(weightPeriod(edge, 1, today, zone).change.kg, -2);
+  assert.equal(weightPeriod(edge, 1, today, 'UTC').change, null);
 });

@@ -12,11 +12,14 @@ import { preparationNutrition, recipeIngredients, resolveRecipeDraft, type Recip
 import { FoodNavigation } from './food';
 import { LogMealButton, type FoodLogData } from './food-diary';
 import { FridgeControls } from './fridge';
+import { RecipeFilters } from './recipe-filters';
 
 const recipePath = '/comidas/recetario';
 
-function recipeQuery(view: RecipeView, entry?: RecipeEntry) {
+function recipeQuery(view: RecipeView, entry?: RecipeEntry, substitutions?: string) {
   const params = new URLSearchParams();
+  if (view.preferAvailable) params.set('disponibles', '1');
+  if (substitutions) params.set('sustituciones', substitutions);
   if (view.filter !== 'all') params.set('intensidad', view.filter);
   if (view.kind !== 'all') params.set('tipo', view.kind);
   if (view.query) params.set('q', view.query);
@@ -34,27 +37,52 @@ async function RecipeMeta({ locale, recipe }: { locale: Locale; recipe: Omit<Rec
   </span>;
 }
 
-export async function RecipeBook({ locale, state, entries, view, selections, demo }: {
+async function RecipeAvailabilityText({ locale, availability, foodNames }: {
+  locale: Locale; availability: ReturnType<typeof recipeAvailability>; foodNames: Record<string, FoodNames>;
+}) {
+  if (!availability.total) return null;
+  const [t, format] = await Promise.all([getTranslations({ locale, namespace: 'recipes' }), getFormatter({ locale })]);
+  const ready = readinessPriority(availability) === 2;
+  const { available, unavailable, unknown, total } = availability;
+  if (ready && availability.substitutions.length) {
+    const changes = availability.substitutions.map(({ from, to }) =>
+      t('replaceIngredient', { from: localizedText(foodNames[from], locale) ?? from, to: localizedText(foodNames[to], locale) ?? to }));
+    return <small className="recipe-availability">{t('readyWithSubstitutions', { changes: format.list(changes, { type: 'conjunction' }) })}</small>;
+  }
+  return <small className="recipe-availability">
+    {ready ? t('allIngredients') : <>
+      {t('marked', { available, total })}
+      {availability.unavailable > 0 && <> · {t('missingIngredients', { unavailable })}</>}
+      {availability.unknown > 0 && <> · {t('unknown', { unknown })}</>}
+    </>}
+  </small>;
+}
+
+export async function RecipeBook({ locale, state, entries, view, foodNames, fridgeReady, demo }: {
   locale: Locale; state: FoodAvailability;
-  entries: { recipe: RecipeSummary & RecipeForLog; entry: RecipeEntry; kcal: number }[];
-  view: RecipeView; selections: FridgeSelection[]; demo: boolean;
+  entries: { recipe: RecipeSummary & RecipeForLog; entry: RecipeEntry; kcal: number; availability: ReturnType<typeof recipeAvailability> }[];
+  view: RecipeView; foodNames: Record<string, FoodNames>; fridgeReady: boolean; demo: boolean;
 }) {
   const t = await getTranslations({ locale });
   const href = localePath(locale, recipePath);
-  const listed = entries.map(({ recipe, entry, kcal }) => ({
+  const listed = entries.map(({ recipe, entry, kcal, availability }) => ({
     recipe, entry, kcal,
     intensity: entry.part ? entry.part.intensity ?? 'light' : recipe.intensity,
     name: localizedText(entry.names, locale) ?? t('recipes.untitled'),
-    availability: recipeAvailability(recipe, selections, entry), score: recipeEntryScore(entry, recipe, view.query),
+    availability, score: recipeEntryScore(entry, recipe, view.query),
   })).filter(({ entry, score, intensity }) => score > 0 && (view.kind === 'all' || view.kind === entry.kind) &&
-    (view.filter === 'all' || view.filter === intensity)).sort((a, b) => b.score - a.score ||
-    readinessPriority(b.availability) - readinessPriority(a.availability) || a.name.localeCompare(b.name, locale));
+    (view.filter === 'all' || view.filter === intensity)).sort((a, b) => {
+      const priority = readinessPriority(b.availability) - readinessPriority(a.availability);
+      return (view.preferAvailable ? priority : b.score - a.score) ||
+        (view.preferAvailable ? b.score - a.score : priority) || a.name.localeCompare(b.name, locale);
+    });
 
   return <>
     <PageHeading title={t('meals.recipes')} visuallyHidden />
     <FoodNavigation section="recipes" demo={demo} />
     <section className="panel section-panel recipe-book">
       <form className="recipe-search" action={href} method="get">
+        {view.preferAvailable && <input type="hidden" name="disponibles" value="1" />}
         {view.kind !== 'all' && <input type="hidden" name="tipo" value={view.kind} />}
         {view.filter !== 'all' && <input type="hidden" name="intensidad" value={view.filter} />}
         <label className="search-field">
@@ -64,14 +92,22 @@ export async function RecipeBook({ locale, state, entries, view, selections, dem
         </label>
         <button className="button secondary" type="submit">{t('recipes.searchSubmit')}</button>
       </form>
-      <nav className="periods recipe-filters" aria-label={t('recipes.kindFilter')}>
-        {(['all', ...recipeKinds] as const).map((kind) => <Link key={kind} href={href + recipeQuery({ ...view, kind })} prefetch={false}
-          aria-current={kind === view.kind ? 'page' : undefined}>{t(`recipes.kinds.${kind}`)}</Link>)}
-      </nav>
-      <nav className="periods recipe-filters" aria-label={t('recipes.filters')}>
-        {(['all', ...recipeIntensities] as const).map((filter) => <Link key={filter} href={href + recipeQuery({ ...view, filter })} prefetch={false}
-          aria-current={filter === view.filter ? 'page' : undefined}>{t(`recipes.${filter}`)}</Link>)}
-      </nav>
+      <RecipeFilters label={t('recipes.filterToggle', { count: Number(view.kind !== 'all') + Number(view.filter !== 'all') })}>
+        <nav className="periods recipe-filters" aria-label={t('recipes.kindFilter')}>
+          {(['all', ...recipeKinds] as const).map((kind) => <Link key={kind} href={href + recipeQuery({ ...view, kind })} prefetch={false}
+            aria-current={kind === view.kind ? 'page' : undefined}>{t(`recipes.kinds.${kind}`)}</Link>)}
+        </nav>
+        <nav className="periods recipe-filters" aria-label={t('recipes.filters')}>
+          {(['all', ...recipeIntensities] as const).map((filter) => <Link key={filter} href={href + recipeQuery({ ...view, filter })} prefetch={false}
+            aria-current={filter === view.filter ? 'page' : undefined}>{t(`recipes.${filter}`)}</Link>)}
+        </nav>
+      </RecipeFilters>
+      {view.preferAvailable && <p className="section-copy recipe-order">
+        {t('recipes.availableFirst')}{' '}
+        <Link className="text-link" href={href + recipeQuery({ ...view, preferAvailable: false })} prefetch={false}>
+          {t('recipes.defaultOrder')}
+        </Link>
+      </p>}
       {state !== 'ready' ? <p className="empty-state" role="status">{t(`recipeState.${state}`)}</p>
         : !listed.length ? <p className="empty-state" role="status">{t(view.query ? 'recipes.noResults'
           : view.filter === 'all' && view.kind === 'all' ? 'empty.recipes.title' : 'recipes.emptyFilter')}</p>
@@ -81,11 +117,7 @@ export async function RecipeBook({ locale, state, entries, view, selections, dem
                 <strong>{name}</strong>
                 <RecipeMeta locale={locale} recipe={{ intensity, kcal_per_serving: kcal,
                   preparation_minutes: entry.part ? entry.part.minutes ?? null : recipe.preparation_minutes }} />
-                {availability.total > 0 && <small className="recipe-availability">
-                  {t('recipes.marked', availability)}
-                  {availability.unavailable > 0 && <> · {t('recipes.missing', availability)}</>}
-                  {availability.unknown > 0 && <> · {t('recipes.unknown', availability)}</>}
-                </small>}
+                {fridgeReady && <RecipeAvailabilityText {...{ locale, availability, foodNames }} />}
               </div>
               <ChevronRight size={18} aria-hidden />
             </Link>
@@ -98,9 +130,9 @@ type Detail = RecipeSummary & RecipeForLog & {
   instructions: Partial<FoodNames>;
 };
 
-export async function RecipeDetail({ locale, recipe, entry, view, selections, fridgeReady, log }: {
+export async function RecipeDetail({ locale, recipe, entry, view, selections, fridgeReady, log, substitutions }: {
   locale: Locale; recipe: Detail; entry: RecipeEntry; view: RecipeView;
-  selections: FridgeSelection[]; fridgeReady: boolean; log: FoodLogData;
+  selections: FridgeSelection[]; fridgeReady: boolean; log: FoodLogData; substitutions?: string;
 }) {
   const [t, format] = await Promise.all([getTranslations({ locale }), getFormatter({ locale })]);
   const selected = new Map(selections.map(({ food_id, status }) => [food_id, status]));
@@ -108,7 +140,17 @@ export async function RecipeDetail({ locale, recipe, entry, view, selections, fr
   const variantInstructions = entry.variant === undefined ? undefined : recipe.variants?.[entry.variant]?.instructions;
   const instructions = localizedValue(entry.part ? entry.part.instructions : variantInstructions ?? recipe.instructions, locale);
   const title = localizedText(entry.names, locale) ?? t('recipes.untitled');
-  const draft = recipeEntryDraft(recipe, entry);
+  const base = recipeEntryDraft(recipe, entry);
+  const availability = recipeAvailability(recipe, selections, entry, refs);
+  const ready = fridgeReady && readinessPriority(availability) === 2;
+  const suggestion = ready && availability.substitutions.length
+    ? availability.substitutions.map(({ position, choice }) => `${position}-${choice}`).join('.') : undefined;
+  const usingSuggestion = Boolean(suggestion && substitutions === suggestion);
+  const draft = usingSuggestion ? {
+    ...base, choices: { ...base.choices, ...Object.fromEntries(availability.substitutions.map(({ position, choice }) => [position, choice])) },
+  } : base;
+  const detailHref = `${localePath(locale, recipePath)}/${recipe.id}`;
+  const foodNames = Object.fromEntries(log.catalog.map((ref) => [ref.food_id, ref.food.names]));
   const lines = resolveRecipeDraft(recipe, draft, refs);
   const nutrition = lines && preparationNutrition(lines, refs);
   const canLog = nutrition && log.recipes.some(({ id }) => id === recipe.id);
@@ -128,6 +170,13 @@ export async function RecipeDetail({ locale, recipe, entry, view, selections, fr
           kcal_per_serving: nutrition?.kcal ?? null, preparation_minutes: entry.part ? entry.part.minutes ?? null : recipe.preparation_minutes }} />
         {canLog && <LogMealButton locale={locale} log={log} initialRecipe={draft} />}
       </div>
+      {fridgeReady && availability.total > 0 && <div className="recipe-fridge-detail">
+        <RecipeAvailabilityText {...{ locale, availability, foodNames }} />
+        {suggestion && <Link className="text-link" prefetch={false}
+          href={detailHref + recipeQuery(view, entry, usingSuggestion ? undefined : suggestion)}>
+          {t(usingSuggestion ? 'recipes.viewOriginal' : 'recipes.useSubstitutions')}
+        </Link>}
+      </div>}
       {recipe.purchase_unit && <p className="section-copy">{t('recipes.purchaseEstimate')}</p>}
       {nutrition && <dl className="recipe-nutrients" aria-label={t('recipes.nutritionPerServing')}>
         {(['protein', 'carbs', 'fat'] as const).map((key) => <div key={key}>
@@ -169,7 +218,9 @@ export async function RecipeDetail({ locale, recipe, entry, view, selections, fr
         </ul>
       </>}
       {instructions && <div className="recipe-instructions">
-        <h2>{t('recipes.preparation')}</h2><p lang={instructions.language}>{instructions.text}</p>
+        <h2>{t('recipes.preparation')}</h2>
+        {usingSuggestion && <p className="section-copy">{t('recipes.adaptInstructions')}</p>}
+        <p lang={instructions.language}>{instructions.text}</p>
       </div>}
     </section>
   </>;

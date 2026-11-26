@@ -94,7 +94,7 @@ export function LiveExercise({ locale, exercise, entries, unit, timeZone }: {
         return result;
       }} />}
       {(modal === 'new' || (modal && typeof modal === 'object')) && (
-        <StrengthForm locale={locale} exercise={exercise} unit={unit} timeZone={timeZone} close={close}
+        <StrengthForm locale={locale} exercise={exercise} unit={unit} timeZone={timeZone} latest={entries.at(-1)} close={close}
           entry={typeof modal === 'object' ? modal : undefined} />
       )}
     </>

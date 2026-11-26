@@ -26,5 +26,6 @@ export default async function RecipePage({ params, searchParams }: {
     part?.id === query.parte && (variant === undefined ? undefined : String(variant)) === query.variante);
   if (!entry) notFound();
   return <RecipeDetail locale={locale} recipe={data.recipe} entry={entry} view={readRecipeView(query)}
+    substitutions={typeof query.sustituciones === 'string' ? query.sustituciones : undefined}
     selections={data.selections} fridgeReady={data.fridgeReady} log={data.log} />;
 }

@@ -1,5 +1,5 @@
-import { foodSearchScore, type FoodNames } from './food.ts';
-import { recipeChoice, recipeIngredients, type RecipeDraft, type RecipeForLog, type RecipePart } from './recipe-composition.ts';
+import { foodSearchScore, usableFood, type FoodNames } from './food.ts';
+import { recipeChoice, recipeIngredients, type RecipeDraft, type RecipeForLog, type RecipePart, type ReferenceIndex } from './recipe-composition.ts';
 
 export const recipeIntensities = ['light', 'medium', 'hearty', 'extraHearty'] as const;
 export type RecipeIntensity = (typeof recipeIntensities)[number];
@@ -7,13 +7,14 @@ export type RecipeFilter = 'all' | RecipeIntensity;
 export const recipeKinds = ['dish', 'preparation', 'snack'] as const;
 export type RecipeKind = (typeof recipeKinds)[number];
 
-export type RecipeView = { filter: RecipeFilter; kind: RecipeKind | 'all'; query: string };
+export type RecipeView = { filter: RecipeFilter; kind: RecipeKind | 'all'; query: string; preferAvailable?: boolean };
 export type RecipeEntry = { names: FoodNames; kind: RecipeKind; part?: RecipePart; variant?: number };
 
 export function readRecipeView(params: Record<string, string | string[] | undefined>): RecipeView {
   return {
     filter: readRecipeFilter(params.intensidad),
     kind: recipeKinds.find((kind) => kind === params.tipo) ?? 'all',
+    ...(params.disponibles === '1' && { preferAvailable: true }),
     query: typeof params.q === 'string' ? params.q.trim().slice(0, 100) : '',
   };
 }
@@ -87,22 +88,33 @@ export function ingredientAvailability(ingredients: { food_id: string }[], selec
   return { available, unavailable, unknown: ids.size - available - unavailable, total: ids.size };
 }
 
-export function recipeAvailability(recipe: RecipeForLog, selections: FridgeSelection[], entry?: RecipeEntry) {
+export function recipeAvailability(recipe: RecipeForLog, selections: FridgeSelection[], entry?: RecipeEntry, refs?: ReferenceIndex) {
   const selected = new Map(selections.map(({ food_id, status }) => [food_id, status]));
   const choices = entry ? recipeEntryDraft(recipe, entry).choices : {};
   const required = recipe.purchase_unit ? [] : recipeIngredients(recipe, entry?.part)
     .filter((ingredient) => recipeChoice(ingredient, choices[ingredient.position]) !== 'omit');
+  const substitutions: { position: number; choice: number; from: string; to: string }[] = [];
   let available = 0;
   let unavailable = 0;
   for (const ingredient of required) {
-    const alternatives = recipe.alternatives.filter(({ ingredient_position }) => ingredient_position === ingredient.position);
+    const alternatives = recipe.alternatives.filter((alt) => {
+      const ref = refs?.get(alt.food_reference_id);
+      return alt.ingredient_position === ingredient.position && (!refs || (ref && usableFood(ref)));
+    }).toSorted((a, b) => a.position - b.position);
     const choice = choices[ingredient.position];
-    const options = typeof choice === 'number' ? alternatives.filter(({ position }) => position === choice).map(({ food_id }) => food_id)
-      : [ingredient.food_id, ...alternatives.map(({ food_id }) => food_id)];
-    if (options.some((id) => selected.get(id) === 'available')) available++;
-    else if (options.length && options.every((id) => selected.get(id) === 'unavailable')) unavailable++;
+    const options = typeof choice === 'number' ? alternatives.filter(({ position }) => position === choice)
+      : [ingredient, ...alternatives];
+    const matched = options.find(({ food_id }) => selected.get(food_id) === 'available');
+    if (matched) {
+      available++;
+      if (typeof choice !== 'number' && matched.food_id !== ingredient.food_id) {
+        substitutions.push({ position: ingredient.position, choice: matched.position, from: ingredient.food_id, to: matched.food_id });
+      }
+    } else if (options.length && options.every(({ food_id }) => selected.get(food_id) === 'unavailable')) {
+      unavailable++;
+    }
   }
-  return { available, unavailable, unknown: required.length - available - unavailable, total: required.length };
+  return { available, unavailable, unknown: required.length - available - unavailable, total: required.length, substitutions };
 }
 
 export function readinessPriority(status: ReturnType<typeof recipeAvailability>) {

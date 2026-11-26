@@ -4,6 +4,10 @@
 
 ## Estado funcional
 
+- Mi heladera indica cuántas recetas se pueden preparar y enlaza al Recetario con esas coincidencias primero. El Recetario explica las sustituciones disponibles y permite abrirlas a voluntad. En móvil los filtros secundarios se despliegan bajo la búsqueda.
+
+- Gym permite registrar una carga desde la fila de un favorito y copiar los últimos valores para ajustarlos antes de guardar. Evolución muestra el cambio y las fechas de los pesajes del período seleccionado junto al peso actual.
+
 - Guardar comida incluye la porción en edición. Sumar otro incorpora el elemento y abre el selector. Repetir añade al borrador las preparaciones recientes con sus ingredientes, medidas y etiquetas históricos. La carga libre se repite por separado.
 
 - Configuración agrupa la búsqueda y la selección IANA. Cerrar sesión tiene más contraste en móvil y conserva su ubicación en el sidebar de escritorio.
