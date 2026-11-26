@@ -1087,6 +1087,44 @@ test('el recetario ampliado publica platos, partes y variantes completas con reg
   assert.deepEqual(resizedPeas.per100g, peas.per100g);
   assert.deepEqual(await legacyIngredients(), oldIngredients);
 
+  await t.test('repite un borrador mixto con valores históricos, porciones y componentes antiguos', async () => {
+    await db.exec('reset role');
+    await apply('20261126090000_repeat_preparations.sql');
+    await as(alice);
+    const repeat = async (items) => (await rows(
+      "select public.masomeno_repeat_preparations('dinner','2020-11-26T22:00Z',null,'es',$1) as id",
+      [JSON.stringify(items)],
+    ))[0].id;
+    const [original] = await snapshot(mealId);
+    const repeated = { type: 'repeat', sourceMeal: mealId, index: 0, original, amount: '1', role: 'side' };
+    const [legacy] = await rows(`
+      select public.masomeno_save_meal(null,'lunch','2020-11-24T15:00Z',null,null,
+        '[{"referenceId":"egg-cooked","amount":0.5,"unit":"egg"}]') as id`);
+    const [{ line }] = await rows("select to_jsonb(c) - 'meal_id' - 'user_id' as line from public.meal_components c where meal_id=$1", [legacy.id]);
+    const oldItem = { type: 'repeat', sourceMeal: legacy.id, index: 0, original: line, amount: '0,5' };
+    const fresh = { name: 'Zanahoria', servings: 1, ingredients: [{ referenceId: 'carrot-raw', grams: 50 }] };
+    const result = await repeat([fresh, repeated, oldItem]);
+    const copy = await snapshot(result);
+    assert.equal(copy.length, 3);
+    assert.deepEqual(copy.slice(0, 2).map((g) => g.name), [fresh.name, original.name]);
+    const [egg] = await rows("select f.names->>'es' as name from public.foods f join public.food_references r on r.food_id=f.id where r.id='egg-cooked'");
+    assert.equal(copy[2].name, egg.name);
+    assert.deepEqual(copy[1].ingredients, initial[0].ingredients);
+    assert.deepEqual([copy[1].servings, copy[1].role, copy[1].kcal, copy[1].protein], [1, 'side', initial[0].kcal, initial[0].protein]);
+    assert.deepEqual([copy[2].measureUnit, copy[2].servings, copy[2].measureGrams, copy[2].kcal, copy[2].carbs],
+      ['egg', line.amount, line.grams_per_unit, line.kcal, null]);
+    const [{ total }] = await rows('select sum(kcal)::float as total from public.meal_components where meal_id=$1',[result]);
+    assert.equal(total, Math.round(copy.reduce((sum, g) => sum + g.kcal, 0) * 100) / 100);
+    assert.deepEqual(await snapshot(mealId), [original]);
+    const count = () => rows('select count(*) from public.meals');
+    const beforeFailure = await count();
+    await assert.rejects(repeat([fresh, { ...repeated, original: { ...original, name: 'stale' } }]), { code: '40001' });
+    assert.deepEqual(await count(), beforeFailure);
+    await as(bob);
+    await assert.rejects(repeat([repeated]), { code: '40001' });
+    await as(alice);
+  });
+
   await t.test('las modalidades conservan categoría, día local y etiquetas al editar', async () => {
     const zone = 'America/Argentina/Buenos_Aires';
     const now = new Date('2020-11-26T01:30:00Z');

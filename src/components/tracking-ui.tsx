@@ -2,7 +2,7 @@
 
 import { Pencil, Plus } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState, useTransition, type FormEvent } from 'react';
+import { useRef, useState, useTransition, type FormEvent } from 'react';
 import { useLocalizedValidation } from '@/i18n/form-validation';
 import type { MutationResult, TrackingAction } from '@/lib/tracking';
 import { Dialog } from './dialog';
@@ -22,10 +22,11 @@ export function EditRecordButton({ onClick, label }: { onClick: () => void; labe
   );
 }
 
-export function RecordDialog({ title, close, save, remove, removePrompt, duplicateMessage, startWithRemoval = false, canSave = true, footer, children, fitViewport }: {
+export function RecordDialog({ title, close, save, saveLabel, remove, removePrompt, duplicateMessage, startWithRemoval = false, canSave = true, footer, children, fitViewport }: {
   title: string;
   close: () => void;
   save: TrackingAction;
+  saveLabel?: string;
   remove?: () => Promise<MutationResult>;
   removePrompt?: string;
   duplicateMessage?: string;
@@ -42,7 +43,10 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
   const [error, setError] = useState<Exclude<MutationResult, 'saved'> | null>(null);
   const [pending, startTransition] = useTransition();
 
+  const inFlight = useRef(false);
   function run(action: () => Promise<MutationResult>, dialog: HTMLDialogElement | null) {
+    if (inFlight.current) return;
+    inFlight.current = true;
     startTransition(async () => {
       let result: MutationResult;
       try {
@@ -51,7 +55,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
         result = 'unavailable';
       }
       if (result === 'saved') dialog?.close();
-      else setError(result);
+      else { inFlight.current = false; setError(result); }
     });
   }
 
@@ -72,7 +76,7 @@ export function RecordDialog({ title, close, save, remove, removePrompt, duplica
           <div className="form-actions">
             {remove && <button type="button" className="button secondary" disabled={pending}
               onClick={() => { setError(null); setConfirm(true); }}>{app('remove')}</button>}
-            <button type="submit" className="button primary" disabled={pending || !canSave}>{pending ? t('saving') : app('save')}</button>
+            <button type="submit" className="button primary" disabled={pending || !canSave}>{pending ? t('saving') : saveLabel ?? app('save')}</button>
           </div>
         </div>
       </form>

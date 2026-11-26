@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { parseMealItems, repeatedNutrition, repeatItems, withMealEdit } from '../src/lib/meal-composition.ts';
 import { portionCalories, portionInGrams } from '../src/lib/food.ts';
 import {
   parseRecipeDrafts, parseRecordedPortions, preparationNutrition, recipeCaloriesPerServing, recipeVariation,
@@ -75,4 +76,26 @@ test('las porciones de un consumo histórico usan las densidades originales y pe
   assert.deepEqual(portions, [0, 1.5]);
   assert.deepEqual(recordedPreparationLines([group, group], portions), [{ grams: 129, kcal: 343.14 }]);
   assert.equal(recordedPreparationLines([group], [0]), null);
+});
+
+test('el guardado incluye el elemento activo una sola vez y conserva las porciones repetidas', () => {
+  const food = { type: 'food', referenceId: 'rice-cooked', unit: 'g', amount: '75' };
+  const direct = withMealEdit([], { index: null, draft: food });
+  assert.deepEqual(parseMealItems(JSON.stringify(direct)), [food]);
+  assert.equal(parseMealItems(JSON.stringify([{ ...food, amount: '' }])), null);
+
+  const record = { id: '94170000-0000-4000-8000-000000000007', preparations: [{
+    name: 'Arroz con mi mezcla', servings: 0.5, role: 'side', ingredients: [
+      { referenceId: 'rice-cooked', grams: 50, per100g: { kcal: 130 } },
+      { referenceId: 'oil', grams: 5, per100g: { kcal: 884 } },
+    ],
+  }] };
+  const [repeated] = repeatItems(record);
+  const draft = [...direct, repeated];
+  const adjusted = { ...repeated, amount: '1' };
+  const result = withMealEdit(draft, { index: 1, draft: adjusted });
+  assert.deepEqual(parseMealItems(JSON.stringify(result)), [food, adjusted]);
+  assert.deepEqual(repeatedNutrition(result[1]), { count: 2, kcal: 218.4 });
+  assert.deepEqual([draft[1].amount, result[1].role, record.preparations[0].servings], ['0.5', 'side', 0.5]);
+  assert.equal(repeatedNutrition({ ...repeated, amount: '' }), null);
 });

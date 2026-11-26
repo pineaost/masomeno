@@ -4,6 +4,8 @@ import type { FridgeSelection, FridgeStatus, PersonalFridgeIngredient, RecipeSum
 import type { PreparationInput, PreparationSnapshot, RecipeAlternative, RecipeForLog, RecipeIngredient } from '@/lib/recipe-composition';
 import type { DistanceUnit, HeightUnit, WeightUnit } from '@/lib/units';
 
+import type { RepeatedItem } from '@/lib/meal-composition';
+
 export type Profile = {
   display_name: string | null;
   birth_date: string | null;
@@ -187,6 +189,11 @@ export type Database = {
           expected_groups: PreparationSnapshot[]; portions: number[];
         };
         Returns: string | null;
+      };
+      masomeno_repeat_preparations: {
+        Args: { meal_category: MealCategory; meal_time: string; meal_name: string | null; meal_locale: Locale;
+          groups: (PreparationInput | RepeatedItem)[] };
+        Returns: string;
       };
       masomeno_save_preparations: {
         Args: { meal_category: MealCategory; meal_time: string; meal_name: string | null; groups: PreparationInput[] };

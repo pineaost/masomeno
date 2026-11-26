@@ -12,10 +12,10 @@ import { calorieProgress } from '@/lib/calories';
 import { calendarDate, localFormDateTime } from '@/lib/dates';
 import {
   foodAmount, maxMealLines, mealCalories, mealCategories, portionCalories, portionInGrams, preferredFoodUnit, quickFoodAmounts,
-  suggestedMealCategory, totalCalories, usableFood,
+  suggestedMealCategory, totalCalories,
   type CatalogFood, type FoodUnit, type MealComponent, type MealRecord,
 } from '@/lib/food';
-import type { MealDraftItem } from '@/lib/meal-composition';
+import { repeatItems, withMealEdit, type MealDraftItem } from '@/lib/meal-composition';
 import { mealLabel } from '@/lib/meal-label';
 import { recordedPreparationLines, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
 import { DiaryCalendar } from './diary-calendar';
@@ -89,11 +89,9 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   const incompleteEdit = legacy && meal?.components.some((component) =>
     !catalog.some((food) => food.id === component.food_reference_id));
   const refs = new Map(catalog.map((ref) => [ref.id, ref]));
-  const values = items.map((item) => mealItemValues(item, refs, recipes));
-  const count = values.reduce((sum, item) => sum + (item?.count ?? 0), 0);
-  const editingValue = itemEdit && mealItemValues(itemEdit.draft, refs, recipes);
-  const previewValues = itemEdit?.index === null ? [...values, editingValue]
-    : values.map((item, index) => index === itemEdit?.index ? editingValue : item);
+  const effectiveItems = withMealEdit(items, itemEdit);
+  const previewValues = effectiveItems.map((item) => mealItemValues(item, refs, recipes));
+  const count = previewValues.reduce((sum, item) => sum + (item?.count ?? 0), 0);
   const portions = recordedServings.map((servings, index) => foodAmount(servings, snapshots?.[index]?.measureUnit ? 10000 : 1000));
   const archived = snapshots && portions.every((value): value is number => value !== null)
     ? recordedPreparationLines(snapshots, portions) : null;
@@ -101,7 +99,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   const total = visibleValues.length && visibleValues.every(Boolean)
     ? totalCalories(visibleValues.flatMap((item) => item ? [item.kcal] : [])) : null;
   const canSave = kind === 'manual' || (legacy && legacyValues.length > 0 && legacyValues.every(Boolean) && !incompleteEdit && activeLine === null) ||
-    (composing && !itemEdit && count > 0 && count <= maxMealLines && values.every(Boolean)) ||
+    (composing && count > 0 && count <= maxMealLines && previewValues.every(Boolean)) ||
     (kind === 'snapshot' && !!archived && activeLine === null);
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
   const amountText = (value: number, unit?: FoodUnit) => unit === 'g' ? `${number(value)} g`
@@ -129,38 +127,19 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   }
 
   function repeatMeal(record: MealRecord) {
-    const canRepeat = record.manual_kcal === null && record.components.length > 0 &&
-      record.components.every(({ food_reference_id }) => {
-        const ref = refs.get(food_reference_id);
-        return ref && usableFood(ref);
-      });
-    const next: MealDraftItem[] = [];
-    if (canRepeat && record.preparations?.length) {
-      for (const group of record.preparations) {
-        for (const ingredient of group.ingredients) {
-          const ref = refs.get(ingredient.referenceId);
-          const unit = ref && group.measureUnit && portionInGrams(group.servings, group.measureUnit, ref) !== null ? group.measureUnit : 'g';
-          next.push({
-            type: 'food', referenceId: ingredient.referenceId, unit,
-            amount: String(unit === 'g' ? ingredient.grams : group.servings), role: group.role,
-          });
-        }
-      }
-    } else if (canRepeat) {
-      for (const { original, food, amount, unit } of draftLines(record, catalog)) {
-        const grams = original && portionCalories(original.amount * original.grams_per_unit, 100);
-        const usesGrams = grams !== undefined && portionInGrams(Number(amount), unit, food) === null;
-        next.push({ type: 'food', referenceId: food.id, unit: usesGrams ? 'g' : unit, amount: usesGrams ? String(grams) : amount });
-      }
+    if (record.manual_kcal !== null) {
+      if (items.length) return;
+      setName(record.name ?? meals(record.category));
+      setKcal(String(record.manual_kcal));
+      setEstimate(false);
+      setKind('manual');
+      return;
     }
-    setItems(next);
-    setItemEdit(null);
-    setPicking(!next.length);
-    setKind(canRepeat ? 'catalog' : 'manual');
-    setEstimate(record.manual_kcal === null && !canRepeat);
-    setName((canRepeat && !record.name && !record.preparations?.length
-      ? '' : mealLabel(record, catalog, locale, meals(record.category))).slice(0, 120));
-    setKcal(canRepeat ? '' : String(mealCalories(record)));
+    const added = repeatItems(record);
+    setItems([...items, ...added]);
+    if (!items.length && !name) setName(record.name ?? '');
+    setPicking(false);
+    setKind('catalog');
   }
 
   function changeArchived(index: number, value: string) {
@@ -168,19 +147,20 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   }
 
   return <RecordDialog title={mode === 'remove' ? app('remove') : editing ? meals('editMeal') : home('logMeal')}
-    close={close} canSave={canSave} fitViewport
+    close={close} canSave={canSave} saveLabel={!editing ? t('saveMeal') : undefined} fitViewport
     footer={total === null ? undefined : <p className="food-total meal-total-bar" aria-live="polite">{t('mealTotal', { kcal: number(total) })}</p>}
     save={saveMeal.bind(null, locale, editing ? meal?.id ?? null : null, zone, snapshots)}
     remove={editing && meal ? deleteMeal.bind(null, locale, meal.id) : undefined}
     removePrompt={t('removeConfirm')} startWithRemoval={mode === 'remove'}>
     {!snapshots && <div className="periods food-kind" role="group" aria-label={t('entryType')}>
+      {!editing && recent.length > 0 && <button type="button" aria-pressed={kind === 'recent'} disabled={!!itemEdit || (kind === 'manual' && Boolean(name || kcal))}
+        onClick={() => changeKind('recent')}>{t('repeatTitle')}</button>}
       <button type="button" aria-pressed={kind === 'catalog'} disabled={!!itemEdit || activeLine !== null}
         onClick={() => changeKind('catalog')}>{t('catalog')}</button>
       {!editing && recipes.length > 0 && <button type="button" aria-pressed={kind === 'recipe'} disabled={!!itemEdit}
         onClick={() => changeKind('recipe')}>{t('recipeMode')}</button>}
-      {!editing && recent.length > 0 && <button type="button" aria-pressed={kind === 'recent'} disabled={!!itemEdit}
-        onClick={() => changeKind('recent')}>{t('repeatTitle')}</button>}
-      <button type="button" aria-pressed={kind === 'manual'} disabled={!!itemEdit || activeLine !== null}
+
+      <button type="button" aria-pressed={kind === 'manual'} disabled={!!itemEdit || activeLine !== null || items.length > 0}
         onClick={() => changeKind('manual')}>{t('manual')}</button>
     </div>}
     <div className="food-field-pair">
@@ -199,16 +179,21 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
     </div>
     <input type="hidden" name="kind" value={composing ? 'composition' : kind} />
     {kind === 'recent' && <ul className="food-recent-picker">
-      {recent.map((record) => <li key={record.id}>
-        <button type="button" onClick={() => repeatMeal(record)}>
-          <span><strong>{mealLabel(record, catalog, locale, meals(record.category))}</strong><small>
-            {meals(record.category)} · {format.dateTime(new Date(record.consumed_at), { timeZone: zone, dateStyle: 'medium' })}
-          </small></span>
-          <RotateCcw size={17} aria-hidden />
-        </button>
-      </li>)}
+      {recent.map((record) => {
+        const included = items.some((item) => item.type === 'repeat' && item.sourceMeal === record.id);
+        const manualOnly = items.length > 0 && record.manual_kcal !== null;
+        return <li key={record.id}>
+          <button type="button" disabled={included || manualOnly} onClick={() => repeatMeal(record)}>
+            <span><strong>{mealLabel(record, catalog, locale, meals(record.category))}</strong><small>
+              {included && <>{t('alreadyAdded')} · </>}{manualOnly && <>{t('manualRepeatOnly')} · </>}
+              {meals(record.category)} · {format.dateTime(new Date(record.consumed_at), { timeZone: zone, dateStyle: 'medium' })}
+            </small></span>
+            <RotateCcw size={17} aria-hidden />
+          </button>
+        </li>;
+      })}
     </ul>}
-    {composing && <MealItems key={kind} {...{ locale, catalog, recipes, refs, items, picking }}
+    {composing && <MealItems key={kind} {...{ locale, catalog, recipes, refs, items, effectiveItems, picking }} lineCount={count}
       source={kind} edit={itemEdit} onItems={setItems} onEdit={setItemEdit} onPick={setPicking} onEstimate={useManual} />}
     {composing && count > maxMealLines && <p role="status">{recipeText('maxIngredients', { count: maxMealLines })}</p>}
     {kind === 'snapshot' && snapshots && <ul className="meal-items-list">
@@ -307,7 +292,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
         ? <CatalogPicker catalog={catalog} locale={locale} onSelect={addLegacy} onEstimate={useManual} />
         : <button type="button" className="button secondary add-meal-item" onClick={() => setShowCatalog(true)}>{t('addFood')}</button>)}
     </>}
-    {kind !== 'manual' && (editing || (composing && items.length > 0)) && <details className="recipe-options">
+    {kind !== 'manual' && (editing || (composing && effectiveItems.length > 0)) && <details className="recipe-options">
       <summary>{t('optionalName')}</summary>
       <label>{t('optionalName')}
         <input name="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />

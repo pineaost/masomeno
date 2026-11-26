@@ -6,7 +6,7 @@ import { demoMode } from '@/lib/account';
 import { readLocale } from '@/lib/auth-paths';
 import { localizedText } from '@/i18n/localized-text';
 import { maxMealLines, parseCalorieGoal, parseMeal, parseMealDetails } from '@/lib/food';
-import { foodPreparation, parseMealItems, type MealDraftItem } from '@/lib/meal-composition';
+import { foodPreparation, parseMealItems, type MealDraftItem, type RepeatedItem } from '@/lib/meal-composition';
 import { foodSession } from '@/lib/food-data';
 import { ingredientNameKey, parsePersonalIngredient, type FridgeStatus } from '@/lib/recipe-catalog';
 import { draftRecipeName, parseRecipeDrafts, parseRecordedPortions, resolveRecipeDraft,
@@ -20,6 +20,7 @@ async function writeSession(locale: Locale) {
 }
 
 function finish(locale: Locale, result: { data: unknown; error: { code?: string } | null }, paths: string[]): MutationResult {
+  if (result.error?.code === '40001') return 'conflict';
   if (result.error) return ['22023', '22P02', '23514'].includes(result.error.code ?? '') ? 'invalid' : 'unavailable';
   if (!result.data) return 'conflict';
   for (const path of paths) revalidatePath(localePath(readLocale(locale), path));
@@ -60,13 +61,15 @@ export async function saveMeal(
     const ids = [...new Set(items.flatMap((item) => item.type === 'recipe' ? [item.recipe.recipeId] : []))];
     const [recipes, catalog] = await Promise.all([
       ids.length ? readRecipeCatalog(session.supabase, 'all', ids) : { data: [], errors: [] },
-      readFoodCatalog(session.supabase),
+      items.some((item) => item.type !== 'repeat') ? readFoodCatalog(session.supabase) : { data: [], error: null },
     ]);
     if (catalog.error || recipes.errors.some(Boolean)) return 'unavailable';
     const refs = new Map(catalog.data.map((ref) => [ref.id, ref]));
-    const groups: PreparationInput[] = [];
+    const groups: (PreparationInput | RepeatedItem)[] = [];
     for (const item of items) {
-      if (item.type === 'food') {
+      if (item.type === 'repeat') {
+        groups.push(item);
+      } else if (item.type === 'food') {
         const ref = refs.get(item.referenceId);
         const title = ref && localizedText(ref.food.names, locale);
         if (!ref || !title) return 'conflict';
@@ -82,10 +85,16 @@ export async function saveMeal(
         groups.push({ name: title, servings: item.recipe.servings, ingredients, role: item.role });
       }
     }
-    if (groups.flatMap(({ ingredients }) => ingredients).length > maxMealLines) return 'invalid';
+    const fresh = groups.filter((group): group is PreparationInput => 'ingredients' in group);
+    if (fresh.length !== groups.length) {
+      return finish(locale, await session.supabase.rpc('masomeno_repeat_preparations', {
+        meal_category: meal.category, meal_time: meal.consumedAt, meal_name: meal.name, meal_locale: locale, groups,
+      }), ['', '/comidas']);
+    }
+    if (fresh.flatMap(({ ingredients }) => ingredients).length > maxMealLines) return 'invalid';
     return finish(locale, await session.supabase.rpc('masomeno_save_preparations', {
       meal_category: meal.category, meal_time: meal.consumedAt, meal_name: meal.name,
-      groups,
+      groups: fresh,
     }), ['', '/comidas']);
   }
   const meal = parseMeal(fields, zone, now, existingTime);

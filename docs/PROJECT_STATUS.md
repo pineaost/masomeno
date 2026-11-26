@@ -4,6 +4,8 @@
 
 ## Estado funcional
 
+- Guardar comida incluye la porción en edición. Sumar otro incorpora el elemento y abre el selector. Repetir añade al borrador las preparaciones recientes con sus ingredientes, medidas y etiquetas históricos. La carga libre se repite por separado.
+
 - Configuración agrupa la búsqueda y la selección IANA. Cerrar sesión tiene más contraste en móvil y conserva su ubicación en el sidebar de escritorio.
 - Las tarjetas de Hoy comparten un máximo de 900 px en escritorio. Biblioteca agrupa variantes y prioriza coincidencias por nombre o sinónimo. Mi heladera conserva cada alimento seleccionable. El peso neto de las galletitas permite convertir ¼ o ½ paquete a gramos. [Catálogo y fuentes](NUTRITION_CATALOG.md#ampliación-de-alimentos-cotidianos)
 
@@ -48,6 +50,8 @@
 - Se auditaron las 31 referencias iniciales. Se completaron dos descripciones USDA y se conservaron las cifras originales. [Auditoría](NUTRITION_CATALOG.md#auditoría-de-las-31-referencias-iniciales)
 
 ## Pendiente
+
+- Para habilitar la repetición estructurada en Supabase remoto queda pendiente aplicar `20261126090000_repeat_preparations.sql` después de las migraciones de alimentación anteriores. La migración se probó en PostgreSQL local.
 
 - Aplicar `20261125140000_recipe_library.sql` y `20261125141000_seed_expanded_recipe_library.sql` después de las migraciones de la Etapa A. El maki fino queda como borrador hasta contar con composición y peso fiable por pieza.
 - Aplicar en orden `20261125130000_food_catalog_groups.sql`, `20261125131000_expand_everyday_food_catalog.sql` y `20261125132000_seed_breakfast_toasts.sql` después de las migraciones anteriores pendientes. Luego verificar la Biblioteca, Mi heladera y el Recetario con el entorno publicado.

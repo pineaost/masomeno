@@ -69,10 +69,11 @@ export type PreparationSnapshot = {
   protein: number | null;
   carbs: number | null;
   fat: number | null;
-  isEstimate: boolean;
+  isEstimate?: boolean;
   role?: PreparationRole;
   measureUnit?: FoodUnit;
   measureGrams?: number;
+  legacyMeasure?: boolean;
   ingredients: {
     referenceId: string;
     foodId: string;
@@ -82,11 +83,11 @@ export type PreparationSnapshot = {
     grams: number;
     kcal: number;
     per100g: { kcal: number; protein: number | null; carbs: number | null; fat: number | null };
-    sourceRef: string | null;
-    sourceUrl: string;
-    sourceDescription: string;
-    sourceKind: FoodReference['source_kind'];
-    isEstimate: boolean;
+    sourceRef?: string | null;
+    sourceUrl?: string;
+    sourceDescription?: string;
+    sourceKind?: FoodReference['source_kind'];
+    isEstimate?: boolean;
   }[];
 };
 
