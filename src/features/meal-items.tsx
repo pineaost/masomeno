@@ -100,7 +100,7 @@ export function MealItems({ locale, catalog, recipes, refs, items, edit, picking
         update={(recipe) => update({ ...draft, recipe })} />}
       <details className="recipe-options">
         <summary>{draft.role ? t(draft.role) : t('optionalRole')}</summary>
-        <div className="periods food-portions" role="group" aria-label={t('optionalRole')}>
+        <div className="periods food-portions meal-role-picker" role="group" aria-label={t('optionalRole')}>
           {([undefined, 'main', 'side'] as const).map((role) => <button type="button" key={role ?? 'none'}
             aria-pressed={draft.role === role} onClick={() => update({ ...draft, role })}>{t(role ?? 'noRole')}</button>)}
         </div>

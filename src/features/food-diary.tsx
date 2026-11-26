@@ -103,7 +103,6 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   const canSave = kind === 'manual' || (legacy && legacyValues.length > 0 && legacyValues.every(Boolean) && !incompleteEdit && activeLine === null) ||
     (composing && !itemEdit && count > 0 && count <= maxMealLines && values.every(Boolean)) ||
     (kind === 'snapshot' && !!archived && activeLine === null);
-  const displayFields = editing || kind === 'manual' || (composing && items.length > 0);
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
   const amountText = (value: number, unit?: FoodUnit) => unit === 'g' ? `${number(value)} g`
     : unit ? `${number(value)} ${t(unit).toLocaleLowerCase(locale)}` : recipeText('servings', { count: value });
@@ -162,27 +161,11 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
     setName((canRepeat && !record.name && !record.preparations?.length
       ? '' : mealLabel(record, catalog, locale, meals(record.category))).slice(0, 120));
     setKcal(canRepeat ? '' : String(mealCalories(record)));
-    setCategory(record.category);
   }
 
   function changeArchived(index: number, value: string) {
     setRecordedServings((previous) => previous.map((old, position) => position === index ? value : old));
   }
-
-  const mealOptions = displayFields && <div className="food-field-pair">
-    <label>{tracking('dateTime')}
-      <input type="datetime-local" name="consumed_at" required min="1900-01-01T00:00" max={now}
-        value={instant} onChange={(event) => setInstant(event.target.value)} />
-    </label>
-    <label>{meals('category')}
-      <select name="category" value={category} onChange={(event) => {
-        const selected = mealCategories.find((value) => value === event.target.value);
-        if (selected) setCategory(selected);
-      }}>
-        {mealCategories.map((option) => <option value={option} key={option}>{meals(option)}</option>)}
-      </select>
-    </label>
-  </div>;
 
   return <RecordDialog title={mode === 'remove' ? app('remove') : editing ? meals('editMeal') : home('logMeal')}
     close={close} canSave={canSave} fitViewport
@@ -200,6 +183,20 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
       <button type="button" aria-pressed={kind === 'manual'} disabled={!!itemEdit || activeLine !== null}
         onClick={() => changeKind('manual')}>{t('manual')}</button>
     </div>}
+    <div className="food-field-pair">
+      <label>{meals('category')}
+        <select name="category" value={category} onChange={(event) => {
+          const selected = mealCategories.find((value) => value === event.target.value);
+          if (selected) setCategory(selected);
+        }}>
+          {mealCategories.map((option) => <option value={option} key={option}>{meals(option)}</option>)}
+        </select>
+      </label>
+      <label>{tracking('dateTime')}
+        <input type="datetime-local" name="consumed_at" required min="1900-01-01T00:00" max={now}
+          value={instant} onChange={(event) => setInstant(event.target.value)} />
+      </label>
+    </div>
     <input type="hidden" name="kind" value={composing ? 'composition' : kind} />
     {kind === 'recent' && <ul className="food-recent-picker">
       {recent.map((record) => <li key={record.id}>
@@ -310,13 +307,12 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
         ? <CatalogPicker catalog={catalog} locale={locale} onSelect={addLegacy} onEstimate={useManual} />
         : <button type="button" className="button secondary add-meal-item" onClick={() => setShowCatalog(true)}>{t('addFood')}</button>)}
     </>}
-    {kind !== 'manual' && displayFields ? <details className="recipe-options">
-      <summary>{meals(category)} · {format.dateTime(new Date((instant || initialTime) + 'Z'), { timeZone: 'UTC', hour: 'numeric', minute: '2-digit' })}</summary>
-      {mealOptions}
+    {kind !== 'manual' && (editing || (composing && items.length > 0)) && <details className="recipe-options">
+      <summary>{t('optionalName')}</summary>
       <label>{t('optionalName')}
         <input name="name" maxLength={120} value={name} onChange={(event) => setName(event.target.value)} />
       </label>
-    </details> : mealOptions}
+    </details>}
   </RecordDialog>;
 }
 

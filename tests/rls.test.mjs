@@ -3,7 +3,7 @@ import { readFile, readdir } from 'node:fs/promises';
 import { test } from 'node:test';
 import { PGlite } from '@electric-sql/pglite';
 import { catalogChoices } from '../src/lib/catalog-search.ts';
-import { isFoodUnit, portionInGrams } from '../src/lib/food.ts';
+import { isFoodUnit, localFoodDay, parseMeal, parseMealDetails, portionInGrams } from '../src/lib/food.ts';
 import { ingredientNameKey, readRecipeView, recipeAvailability, recipeEntries, recipeEntryDraft, recipeEntryScore } from '../src/lib/recipe-catalog.ts';
 import { preparationNutrition, recipeCaloriesPerServing, resolveRecipeDraft } from '../src/lib/recipe-composition.ts';
 import { parseStrength, parseTreadmill } from '../src/lib/tracking-fields.ts';
@@ -1086,6 +1086,62 @@ test('el recetario ampliado publica platos, partes y variantes completas con reg
   assert.equal(resizedPeas.grams, 2 * peas.grams);
   assert.deepEqual(resizedPeas.per100g, peas.per100g);
   assert.deepEqual(await legacyIngredients(), oldIngredients);
+
+  await t.test('las modalidades conservan categoría, día local y etiquetas al editar', async () => {
+    const zone = 'America/Argentina/Buenos_Aires';
+    const now = new Date('2020-11-26T01:30:00Z');
+    const day = localFoodDay(now, zone);
+    const fields = (category, time) => {
+      const form = new FormData();
+      form.set('category', category);
+      form.set('consumed_at', `${day.date}T${time}`);
+      return form;
+    };
+    async function readMeal(id, category, time, roles) {
+      const [meal] = await rows('select category, consumed_at, preparations from public.meals where id = $1', [id]);
+      assert.equal(meal.category, category);
+      assert.equal(meal.consumed_at.toISOString(), time);
+      assert.ok(meal.consumed_at >= new Date(day.start) && meal.consumed_at < new Date(day.end));
+      if (roles) assert.deepEqual(meal.preparations.map((group) => group.role ?? null), roles);
+      return meal;
+    }
+    const banana = { name: 'Banana', servings: 1, ingredients: [{ referenceId: 'banana-raw', grams: 100 }] };
+    const cases = [
+      ['firstMeal', '09:15', '2020-11-25T12:15:00.000Z', [banana], [null]],
+      ['lunch', '13:00', '2020-11-25T16:00:00.000Z', [groups[0]], ['main']],
+      ['snack', '18:10', '2020-11-25T21:10:00.000Z', groups, ['main', 'side']],
+    ];
+    for (const [category, time, utc, preparations, roles] of cases) {
+      const form = fields(category, time);
+      const meal = parseMealDetails(form, zone, now);
+      const [{ id }] = await rows('select public.masomeno_save_preparations($1,$2,$3,$4) as id', [
+        meal.category, meal.consumedAt, meal.name, JSON.stringify(preparations),
+      ]);
+      const savedMeal = await readMeal(id, category, utc, roles);
+      const edit = parseMealDetails(form, zone, now, savedMeal.consumed_at.toISOString());
+      await rows('select public.masomeno_resize_preparations($1,$2,$3,$4,$5,$6)', [
+        id, edit.category, edit.consumedAt, edit.name, JSON.stringify(savedMeal.preparations),
+        JSON.stringify(preparations.map(({ servings }) => servings * 2)),
+      ]);
+      await readMeal(id, category, utc, roles);
+    }
+    const manualFields = fields('dinner', '21:15');
+    manualFields.set('name', 'Cena');
+    manualFields.set('kind', 'manual');
+    manualFields.set('kcal', '320,5');
+    const manual = parseMeal(manualFields, zone, now);
+    const [{ id: manualId }] = await rows('select public.masomeno_save_meal(null,$1,$2,$3,$4,$5) as id', [
+      manual.category, manual.consumedAt, manual.name, manual.kcal, JSON.stringify(manual.lines),
+    ]);
+    const utc = '2020-11-26T00:15:00.000Z';
+    await readMeal(manualId, 'dinner', utc);
+    manualFields.set('category', 'other');
+    const edit = parseMeal(manualFields, zone, now, utc);
+    await rows('select public.masomeno_save_meal($1,$2,$3,$4,$5,$6)', [
+      manualId, edit.category, edit.consumedAt, edit.name, edit.kcal, JSON.stringify(edit.lines),
+    ]);
+    await readMeal(manualId, 'other', utc);
+  });
   await as(bob);
   assert.deepEqual(await rows('select id from public.meals where id = $1', [newMeal]), []);
 });

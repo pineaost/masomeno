@@ -41,6 +41,10 @@
     "over": "Oltre l’obiettivo",
     "reached": "Obiettivo raggiunto",
     "estimate": "Valori approssimativi",
+    "range": "Intervallo obiettivo: {lower}–{upper} kcal",
+    "belowRange": "Mancano {kcal} kcal per entrare nell’intervallo",
+    "withinRange": "Nell’intervallo obiettivo",
+    "aboveRange": "{kcal} kcal oltre l’intervallo",
     "summary": "{consumed} di {goal} kcal. {percentage}% dell’obiettivo."
   },
   "meals": {

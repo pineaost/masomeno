@@ -41,6 +41,10 @@
     "over": "Above your goal",
     "reached": "Goal reached",
     "estimate": "Approximate values",
+    "range": "Target range: {lower}–{upper} kcal",
+    "belowRange": "{kcal} kcal to reach the range",
+    "withinRange": "Within the target range",
+    "aboveRange": "{kcal} kcal above the range",
     "summary": "{consumed} of {goal} kcal. {percentage}% of goal."
   },
   "meals": {

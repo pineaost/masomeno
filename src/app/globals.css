@@ -148,18 +148,20 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .calories-goal svg { color: var(--apricot); flex: none; }
 .calories-goal:hover { background: color-mix(in srgb, var(--bone) 14%, transparent); }
 .calories-goal:focus-visible, .calories-actions a:focus-visible { outline-color: var(--apricot); }
-.calories-track { position: relative; display: flex; height: 11px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--bone) 22%, var(--petrol)); }
-.calories-track div { flex: none; height: 100%; transition: width .24s ease; }
-.calories-base { background: var(--apricot); border-radius: inherit; }
-.calories-track[data-near-goal="true"] .calories-base { background: color-mix(in srgb, var(--apricot) 74%, var(--bone)); }
-.calories-track[data-over-goal="true"] .calories-base { border-start-end-radius: 0; border-end-end-radius: 0; }
+.calories-track { position: relative; height: 11px; border-radius: 999px; overflow: hidden; background: color-mix(in srgb, var(--bone) 22%, var(--petrol)); }
+.calories-track > div { position: absolute; inset-block: 0; }
+.calories-base { left: 0; background: var(--today-apricot, var(--apricot)); }
+.calories-zone { background: #a7bead; }
+.calories-zone-fill { height: 100%; background: #70c587; }
 .calories-excess { background: #ec938b; }
+.calories-base, .calories-zone-fill, .calories-excess { transition: width .24s ease; }
 .calories-marker { position: absolute; inset-block: 0; width: 2px; transform: translateX(-50%); background: var(--deep); }
 .calories-footer { display: flex; justify-content: space-between; gap: 10px; margin-top: 8px; font-size: .875rem; }
 .calories-footer span { color: color-mix(in srgb, var(--bone) 87%, var(--petrol)); }
 .calories-footer strong { font-weight: 800; color: var(--bone); }
+.calories-range { color: color-mix(in srgb, var(--bone) 78%, var(--petrol)); font-size: .75rem; }
 .calories-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-.calories-actions .primary { background: var(--apricot); color: var(--petrol); border-color: var(--apricot); }
+.calories-actions .primary { background: var(--today-apricot, var(--apricot)); color: var(--petrol); border-color: var(--today-apricot, var(--apricot)); }
 .calories-actions :is(.secondary, .text-link) { color: var(--bone); }
 .calories-actions .secondary { border-color: color-mix(in srgb, var(--bone) 40%, transparent); }
 .calories-actions .secondary:hover { background: color-mix(in srgb, var(--bone) 14%, transparent); }
@@ -313,6 +315,9 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .section-nav a, .periods :is(button, a) { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 7px 10px; border-radius: 9px; font-size: .875rem; font-weight: 800; }
 .section-nav a:hover, .periods :is(button, a):hover { background: var(--wash); }
 .section-nav [aria-current], .periods :is([aria-pressed="true"], [aria-current]) { background: var(--peach-wash); }
+@media (hover: none) {
+  .meal-role-picker button[aria-pressed="true"] { background: var(--peach-wash); }
+}
 .section-nav .fridge-link { border: 1px solid var(--line); }
 .recipe-filters { gap: 4px; }
 .recipe-search { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; }
@@ -614,6 +619,8 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
   .demo-mark { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: var(--peach-wash); font-size: 1.35rem; font-weight: 800; }
   .workspace { padding: 28px clamp(28px, 3.45vw, 58px) 35px; }
   .today-stack { max-width: 900px; }
+  .today-stack { --today-apricot: #f1a26e; }
+  .today-meals .food-quick-actions .primary:not(:hover) { background: var(--today-apricot); }
   .today-stack > :is(.calories-card, .today-meals) { padding-inline: 29px; }
   .gym-overview { grid-template-areas: 'exercises treadmill'; grid-template-columns: repeat(2, minmax(0, 1fr)); reading-flow: grid-rows; }
   .quick-section { margin-block: 23px; }

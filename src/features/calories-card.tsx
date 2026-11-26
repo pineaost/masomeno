@@ -7,7 +7,7 @@ import { useState } from 'react';
 import { RecordDialog } from '@/components/tracking-ui';
 import { localePath } from '@/i18n/config';
 import { readLocale } from '@/lib/auth-paths';
-import { summarizeCalories } from '@/lib/calories';
+import { calorieProgress } from '@/lib/calories';
 import type { FoodAvailability } from '@/lib/food';
 import { setCalorieGoal } from './food-actions';
 import { LogMealButton, useFoodDayRefresh, type FoodLogData } from './food-diary';
@@ -23,8 +23,12 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false, lo
   const locale = readLocale(useLocale());
   const [editingGoal, setEditingGoal] = useState(false);
   const ready = state === 'ready';
-  const summary = ready && goal !== null ? summarizeCalories(consumed, goal) : null;
+  const progress = ready ? calorieProgress(consumed, goal) : null;
+  const displayGoal = progress ? goal : null;
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
+  const range = progress ? t('range', { lower: number(progress.lower), upper: number(progress.upper) }) : '';
+  const status = progress && (progress.remaining > 0 ? t('belowRange', { kcal: number(progress.remaining) })
+    : progress.excess > 0 ? t('aboveRange', { kcal: number(progress.excess) }) : t('withinRange'));
   const diary = localePath(locale, '/comidas');
   useFoodDayRefresh(refreshAt);
 
@@ -36,31 +40,33 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false, lo
           {ready && <span className="estimate">{t('estimate')}</span>}
         </div>
         <div className="calories-total">
-          <strong>{ready ? number(consumed) : '—'}</strong>
-          {(!ready || goal === null || !live) && <span>{ready && goal !== null ? `/ ${number(goal)} kcal` : 'kcal'}</span>}
+          <strong>{ready && Number.isFinite(consumed) && consumed >= 0 ? number(consumed) : '—'}</strong>
+          {(!ready || displayGoal === null || !live) && <span>{displayGoal !== null ? `/ ${number(displayGoal)} kcal` : 'kcal'}</span>}
           {live && ready && <button type="button" className="calories-goal" onClick={() => setEditingGoal(true)}
-            aria-label={goal === null ? food('setGoal') : `${food('editGoal')} · ${number(goal)} kcal`}
-            title={goal === null ? undefined : food('editGoal')}>
-            {goal === null ? food('setGoal') : `/ ${number(goal)} kcal`}
+            aria-label={displayGoal === null ? food('setGoal') : `${food('editGoal')} · ${number(displayGoal)} kcal`}
+            title={displayGoal === null ? undefined : food('editGoal')}>
+            {displayGoal === null ? food('setGoal') : `/ ${number(displayGoal)} kcal`}
             <Pencil size={15} aria-hidden />
           </button>}
         </div>
-        {summary && goal !== null ? (
+        {progress && displayGoal !== null ? (
           <>
-            <div className="calories-track" data-near-goal={summary.percentage >= 90}
-              data-over-goal={summary.status === 'over'} role="progressbar" aria-labelledby="calories-title"
-              aria-valuemin={0} aria-valuemax={Math.max(consumed, goal)} aria-valuenow={consumed}
-              aria-valuetext={t('summary', { consumed: number(consumed), goal: number(goal), percentage: number(summary.percentage) })}>
-              <div className="calories-base" style={{ width: `${summary.baseFill}%` }} />
-              {summary.excessFill > 0 && <>
-                <div className="calories-excess" style={{ width: `${summary.excessFill}%` }} />
-                <span className="calories-marker" style={{ left: `${summary.goalMark}%` }} aria-hidden />
-              </>}
+            <div className="calories-track" role="progressbar" aria-labelledby="calories-title"
+              aria-valuemin={0} aria-valuemax={progress.scale} aria-valuenow={progress.visible}
+              aria-valuetext={t('summary', { consumed: number(consumed), goal: number(displayGoal),
+                percentage: number(progress.percentage) })}>
+              <div className="calories-base" style={{ width: `${progress.baseFill}%` }} />
+              <div className="calories-zone" style={{ left: `${progress.zoneStart}%`, width: `${progress.zoneWidth}%` }}>
+                <div className="calories-zone-fill" style={{ width: `${progress.zoneFill}%` }} />
+              </div>
+              <div className="calories-excess" style={{ left: `${progress.excessStart}%`, width: `${progress.excessFill}%` }} />
+              <span className="calories-marker" style={{ left: `${progress.goalMark}%` }} aria-hidden />
             </div>
             <div className="calories-footer">
-              <span><strong>{number(Math.abs(summary.difference))} kcal</strong> · {t(summary.status)}</span>
-              <strong>{number(summary.percentage)}%</strong>
+              <span>{status}</span>
+              <strong>{number(progress.percentage)}%</strong>
             </div>
+            <p className="calories-range">{range}</p>
           </>
         ) : (
           <>
@@ -75,7 +81,7 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false, lo
       </div>
       {editingGoal && <RecordDialog title={food('goal')} save={setCalorieGoal.bind(null, locale)} close={() => setEditingGoal(false)}>
         <label>{food('goalInput')}
-          <input type="number" name="kcal" inputMode="numeric" min="1" max="10000" step="1" defaultValue={goal ?? ''} />
+          <input type="number" name="kcal" inputMode="numeric" min="1" max="10000" step="1" defaultValue={displayGoal ?? ''} />
         </label>
         <p className="section-copy">{food('goalHint')}</p>
       </RecordDialog>}
