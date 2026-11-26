@@ -1,6 +1,6 @@
 # Estado de MASOMENO
 
-**Contraste y edición de ingredientes de Registrar comida ajustados en local.**
+**Confirmación de preparaciones y diálogo de borrado compacto implementados en local.**
 
 ## Estado funcional
 
@@ -8,7 +8,7 @@
 
 - Gym permite registrar una carga desde la fila de un favorito y copiar los últimos valores para ajustarlos antes de guardar. Evolución muestra el cambio y las fechas de los pesajes del período seleccionado junto al peso actual.
 
-- Guardar comida incluye la preparación en edición. Agregar otra preparación incorpora el elemento al borrador y abre el selector. Dentro de una receta, Confirmar aplica el cambio del ingrediente y contrae su editor. Cancelar recupera los valores confirmados. Repetir añade al borrador las preparaciones recientes con sus ingredientes, medidas y etiquetas históricos. La carga libre se repite por separado.
+- OK confirma la preparación y la muestra en el borrador como una fila compacta. Agregar otra preparación confirma el elemento y abre el selector. Guardar comida registra el conjunto, incluida la preparación válida en edición. Dentro de una receta, Confirmar aplica el cambio del ingrediente y contrae su editor. Cancelar recupera los valores confirmados. Repetir añade al borrador las preparaciones recientes con sus ingredientes, medidas y etiquetas históricos. La carga libre se repite por separado.
 
 - Configuración agrupa la búsqueda y la selección IANA. Cerrar sesión tiene más contraste en móvil y conserva su ubicación en el sidebar de escritorio.
 - Las tarjetas de Hoy comparten un máximo de 900 px en escritorio. Biblioteca agrupa variantes y prioriza coincidencias por nombre o sinónimo. Mi heladera conserva cada alimento seleccionable. El peso neto de las galletitas permite convertir ¼ o ½ paquete a gramos. [Catálogo y fuentes](NUTRITION_CATALOG.md#ampliación-de-alimentos-cotidianos)
@@ -23,7 +23,7 @@
 - El modal muestra una categoría común junto a la fecha y hora en todas las modalidades. La categoría se conserva al cambiar de modalidad o elegir una comida reciente. La hora de consumo se interpreta en la zona del perfil y se guarda con la categoría mediante las funciones existentes de Supabase. Las etiquetas opcionales de cada preparación mantienen el naranja al tocarlas.
 - Mi heladera muestra todos los ingredientes que coinciden con los filtros. Conserva los estados y los ingredientes personales por cuenta.
 - El Recetario ofrece búsqueda, filtros de tipo e intensidad, y fichas de preparaciones y variantes en ES, EN e IT. Prioriza las que se pueden hacer según Mi heladera y mantiene visibles las demás. El catálogo tiene 222 alimentos y 306 referencias. [Etapa B](RECIPE_CANDIDATES.md#etapa-b) · [Fuentes y modelo](NUTRITION_CATALOG.md#preparaciones-y-comidas-compradas)
-- El modal de comidas mantiene la geometría al filtrar resultados y ajusta la altura al área visible. Los controles secundarios usan texto petróleo sobre fondos claros y las acciones destructivas se distinguen en rojo. Personalizar ingredientes permite quitar, sustituir, ajustar y sumar alimentos de Biblioteca dentro de la misma preparación. El total calórico se actualiza al confirmar un ingrediente. Cada receta arranca con su composición base, independiente de Mi heladera. El historial conserva el detalle y escala los ingredientes guardados al editar porciones. El guardado reutiliza las funciones existentes de Supabase.
+- El formulario de comidas mantiene su geometría al filtrar resultados y se ajusta al área visible. La confirmación de borrado adapta su altura al contenido. Los controles secundarios usan texto petróleo sobre fondos claros y las acciones destructivas se distinguen en rojo. Personalizar ingredientes permite quitar, sustituir, ajustar y sumar alimentos de Biblioteca dentro de la misma preparación. El total calórico se actualiza al confirmar un ingrediente. Cada receta arranca con su composición base, independiente de Mi heladera. El historial conserva el detalle y escala los ingredientes guardados al editar porciones. El guardado reutiliza las funciones existentes de Supabase.
 - Evolución conserva tres pesajes visibles y abre el historial completo con edición y eliminación confirmada. La tendencia usa una media de siete días locales y el eje agrega 5 kg por extremo. Cinta y fuerza usan márgenes relativos.
 - El login muestra «¿Comiste bien? ¿Entrenaste?» sobre la carita y Masomeno, con traducciones en inglés e italiano. El botón de acceso muestra la G oficial de Google. [Recurso de Google Identity](https://developers.google.com/identity/branding-guidelines)
 
@@ -33,6 +33,7 @@
 
 ## Verificado
 
+- OK y borrado de comidas. En Chrome de escritorio y emulación móvil se confirmaron un bife y una receta por separado, se revisaron cantidades y etiquetas y se guardó el conjunto una sola vez en PostgreSQL local. Cancelar conservó la comida y Eliminar la quitó. La confirmación midió 181 px de alto y el formulario mantuvo sus 690 px en ambos tamaños probados.
 - Registrar comida. En Chrome de escritorio y emulación móvil se comprobó el contraste, la edición compacta y el guardado de una ensalada con atún y un bife como preparaciones separadas. Se verificaron las cantidades, las etiquetas y el historial con PostgreSQL local.
 
 - Interfaz en Chrome de escritorio (1366 × 820) y con emulación móvil (390 × 844). Se revisaron las cuatro pantallas principales, Configuración, el foco de teclado en Hoy, los períodos de Evolución y los modales de comida, peso y cinta con datos de prueba locales.

@@ -43,9 +43,18 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
   const format = useFormatter();
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
   const heading = useRef<HTMLHeadingElement>(null);
+  const list = useRef<HTMLUListElement>(null);
+  const confirmedIndex = useRef<number | null>(null);
   const active = edit ? edit.index ?? 'new' : null;
+  const editResult = edit && mealItemValues(edit.draft, refs, recipes);
+  const canConfirm = !!editResult && !edit?.ingredientOpen && lineCount <= maxMealLines;
   useEffect(() => {
-    if (active !== null) heading.current?.focus();
+    if (active !== null) {
+      heading.current?.focus();
+    } else if (confirmedIndex.current !== null) {
+      list.current?.children[confirmedIndex.current]?.querySelector('button')?.focus();
+      confirmedIndex.current = null;
+    }
   }, [active]);
   const amountLabel = (value: string, unit: FoodUnit) => unit === 'g' ? `${number(foodAmount(value, 100000) ?? 0)} g`
     : `${number(foodAmount(value, 100000) ?? 0)} ${t(unit).toLocaleLowerCase(locale)}`;
@@ -74,13 +83,22 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
     onEdit({ index: null, draft });
   }
 
+  function confirmPreparation(openPicker: boolean) {
+    if (edit) {
+      if (!canConfirm) return;
+      if (!openPicker) confirmedIndex.current = edit.index ?? items.length;
+      onItems(effectiveItems);
+      onEdit(null);
+    }
+    onPick(openPicker);
+  }
+
   function editor() {
     if (!edit) return null;
     const { draft, index } = edit;
     const food = draft.type === 'food' ? refs.get(draft.referenceId) : undefined;
     const recipe = draft.type === 'recipe' ? recipeFor(draft.recipe.recipeId) : undefined;
     const estimate = food && draft.type === 'food' ? foodDraftNutrition(draft, food) : null;
-    const result = mealItemValues(draft, refs, recipes);
     const name = itemName(draft);
     const variant = localizedText(food?.variant_names, locale);
     const update = (item: MealDraftItem, ingredientOpen = edit.ingredientOpen) => onEdit({ index, draft: item, ingredientOpen });
@@ -89,7 +107,7 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
     return <section className="meal-item-editor" aria-label={name}>
       <div className="food-line-heading">
         <div><h3 ref={heading} tabIndex={-1}>{name}</h3>{variant && <small>{variant}</small>}</div>
-        <strong aria-live="polite">{result && <>≈ {number(result.kcal)} kcal</>}</strong>
+        <strong aria-live="polite">{editResult && <>≈ {number(editResult.kcal)} kcal</>}</strong>
       </div>
       {draft.type === 'food' && food && <HouseholdAmount food={food} grams={estimate?.grams} amount={draft.amount} unit={draft.unit}
         onChange={(amount, unit) => update({ ...draft, amount, unit })} />}
@@ -116,13 +134,15 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
       </details>
       <div className="form-actions">
         <button type="button" className="button secondary" onClick={() => { onEdit(null); if (!items.length) onPick(true); }}>{app('cancel')}</button>
+        <button type="button" className="button primary" disabled={!canConfirm}
+          onClick={() => confirmPreparation(false)}>{t('confirmPreparation')}</button>
       </div>
     </section>;
   }
 
   return <div className="meal-items">
     <input type="hidden" name="mealItems" value={JSON.stringify(effectiveItems)} />
-    {!!items.length && <ul className="meal-items-list">{items.map((item, index) => {
+    {!!items.length && <ul className="meal-items-list" ref={list}>{items.map((item, index) => {
       if (edit?.index === index) return <li key={index}>{editor()}</li>;
       const name = itemName(item);
       const data = mealItemValues(item, refs, recipes);
@@ -150,14 +170,8 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
       : <RecipePicker recipes={recipes} locale={locale} select={(recipe) => modify({ type: 'recipe', recipe })} />)}
     {(edit || (!picking && items.length < maxMealLines)) && <div className="meal-composition-actions">
       <button type="button" className="button secondary add-meal-item"
-        disabled={!!edit && (edit.ingredientOpen || !mealItemValues(edit.draft, refs, recipes) || lineCount >= maxMealLines)}
-        onClick={() => {
-          if (edit) {
-            onItems(effectiveItems);
-            onEdit(null);
-          }
-          onPick(true);
-        }}><Plus size={17} aria-hidden />{t('addAnother')}</button>
+        disabled={!!edit && (!canConfirm || lineCount >= maxMealLines)}
+        onClick={() => confirmPreparation(true)}><Plus size={17} aria-hidden />{t('addAnother')}</button>
     </div>}
   </div>;
 }

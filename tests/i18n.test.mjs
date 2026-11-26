@@ -35,6 +35,7 @@ function readCatalog(locale) {
 const sharedWording = new Set([
   'nav.gym', 'meals.dinner', 'weight.weightInput', 'gym.leg', 'gym.chest', 'gym.pace', 'auth.password',
   'nutrition.raw', 'nutrition.food', 'nutrition.per100', 'nutrition.lineEstimate', 'nutrition.bananaLarge',
+  'nutrition.confirmPreparation',
   'recipes.medium', 'recipes.minutes', 'recipes.householdAmount', 'recipes.variation', 'settings.account',
   'recipes.measures.bananaLarge', 'recipes.measures.unit',
 ]);

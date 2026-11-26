@@ -179,6 +179,7 @@
     "quarterPackage": "¼ pack",
     "halfPackage": "½ pack",
     "confirmItem": "Confirm item",
+    "confirmPreparation": "OK",
     "editItem": "Edit {food}",
     "optionalRole": "Optional label",
     "noRole": "No label",

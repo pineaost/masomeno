@@ -325,12 +325,12 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
   background: color-mix(in srgb, var(--petrol) 18%, var(--surface));
 }
 .meal-dialog .add-recipe-ingredient[aria-expanded="true"] { box-shadow: inset 0 -2px var(--petrol); }
-.meal-dialog .destructive:enabled { color: #8a362e; }
-.meal-dialog .button.destructive:enabled { border-color: #a66b64; }
-.meal-dialog .primary.destructive:enabled { background: #f7e6e1; }
-.meal-dialog .destructive:enabled:hover { background: #f7e6e1; }
-.meal-dialog .primary.destructive:enabled:hover,
-.meal-dialog .destructive:enabled:active { background: #f0d7d1; }
+:is(.meal-dialog, .dialog-compact) .destructive:enabled { color: #8a362e; }
+:is(.meal-dialog, .dialog-compact) .button.destructive:enabled { border-color: #a66b64; }
+:is(.meal-dialog, .dialog-compact) .primary.destructive:enabled { background: #f7e6e1; }
+:is(.meal-dialog, .dialog-compact) .destructive:enabled:hover { background: #f7e6e1; }
+:is(.meal-dialog, .dialog-compact) .primary.destructive:enabled:hover,
+:is(.meal-dialog, .dialog-compact) .destructive:enabled:active { background: #f0d7d1; }
 .section-nav { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
 .section-nav a, .periods :is(button, a) { display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 7px 10px; border-radius: 9px; font-size: .875rem; font-weight: 800; }
 .section-nav a:hover, .periods :is(button, a):hover:where(:not(:disabled)) { background: var(--wash); }
@@ -544,7 +544,8 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
   max-height: calc(100dvh - 28px);
   overflow-y: auto;
 }
-.dialog:has(.record-submit-with-summary) { scroll-padding-bottom: 110px; }
+.dialog-compact { width: min(400px, calc(100vw - 28px)); }
+.dialog:not(.dialog-compact):has(.record-submit-with-summary) { scroll-padding-bottom: 110px; }
 .meal-dialog[open] {
   --meal-top-gap: max(12px, env(safe-area-inset-top));
   --meal-bottom-gap: max(12px, env(safe-area-inset-bottom));
@@ -571,7 +572,6 @@ h2 { font-size: 1.125rem; font-weight: 800; letter-spacing: -.025em; line-height
 .meal-dialog > form > :not(fieldset), .meal-dialog .dialog-heading { flex: none; }
 .meal-dialog .record-submit-with-summary { position: static; }
 .meal-dialog .food-results { max-height: min(255px, max(96px, calc(var(--meal-visual-height, 100dvh) * .4))); }
-.meal-dialog > .form-stack:not(form) { overflow-y: auto; }
 .recipe-add-picker { display: grid; gap: 8px; }
 .recipe-add-picker > button, .add-recipe-ingredient { justify-self: start; }
 .recipe-customization { border-top: 1px solid var(--line); padding-top: 6px; }

@@ -179,6 +179,7 @@
     "quarterPackage": "¼ di confezione",
     "halfPackage": "½ confezione",
     "confirmItem": "Conferma elemento",
+    "confirmPreparation": "OK",
     "editItem": "Modifica {food}",
     "optionalRole": "Etichetta facoltativa",
     "noRole": "Nessuna etichetta",

@@ -67,7 +67,7 @@ export function RecordDialog({ title, close, save, saveLabel, remove, removeProm
   }
 
   return (
-    <Dialog title={title} onClose={close} fitViewport={fitViewport}>
+    <Dialog title={title} onClose={close} fitViewport={fitViewport} compact={!!(fitViewport && confirm && remove)}>
       <form onSubmit={submit} className="form-stack" hidden={confirm} {...validation}>
         <fieldset disabled={pending} className="form-stack">{children}</fieldset>
         {!confirm && error && <p role="alert">{error === 'duplicate' && duplicateMessage ? duplicateMessage : t(error)}</p>}
