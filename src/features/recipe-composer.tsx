@@ -206,8 +206,15 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
             <span className="record-row-copy"><strong>{name}</strong>
               <small>{choice === 'omit' ? t('omit') : amountLabel(current.measure)}</small>
             </span>
-            <button type="button" className="icon-button" aria-label={n('editItem', { food: name })} disabled={!!editing}
-              onClick={(event) => startEdit({ position: slot.position, choice }, event.currentTarget)}><Pencil size={17} aria-hidden /></button>
+            <div className="food-row-actions">
+              <button type="button" className="icon-button" aria-label={n('editItem', { food: name })} disabled={ingredientOpen}
+                onClick={(event) => startEdit({ position: slot.position, choice }, event.currentTarget)}><Pencil size={17} aria-hidden /></button>
+              {choice !== 'omit' && <button type="button" className="icon-button destructive" aria-label={t('removeIngredient', { food: name })}
+                disabled={ingredientOpen} onClick={(event) => {
+                  confirmSlot(slot.position, choice, 'omit');
+                  event.currentTarget.parentElement?.querySelector('button')?.focus();
+                }}><Trash2 size={17} aria-hidden /></button>}
+            </div>
           </div>
           {slotEdit && <fieldset className="recipe-extra" ref={editorField}>
             <legend>{name}</legend>

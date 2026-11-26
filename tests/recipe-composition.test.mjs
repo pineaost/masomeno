@@ -78,6 +78,31 @@ test('las porciones de un consumo histórico usan las densidades originales y pe
   assert.equal(recordedPreparationLines([group], [0]), null);
 });
 
+test('el borrador puede omitir ingredientes originales sin alterar la receta ni sus otras personalizaciones', () => {
+  const id = '94170000-0000-4000-8000-000000000007';
+  const recipe = {
+    id, base_servings: 1,
+    ingredients: [...base, { position: 2, food_reference_id: 'carrot-raw', grams: 50 }],
+    alternatives: [{ ingredient_position: 1, position: 1, food_reference_id: 'rice-cooked', grams: 150 }],
+  };
+  const original = structuredClone(recipe);
+  const draft = {
+    recipeId: id, servings: 1, choices: { 1: 1, 2: 'omit' }, quantities: {},
+    measures: { 1: { amount: '125', unit: 'g' } },
+    additions: [{ referenceId: 'oil', amount: '5', unit: 'g' }],
+  };
+  const lines = resolveRecipeDraft(recipe, draft, references);
+  assert.deepEqual(lines, [{ referenceId: 'rice-cooked', grams: 125 }, { referenceId: 'oil', grams: 5 }]);
+  assert.deepEqual(preparationNutrition(lines, references), {
+    kcal: 206.7, protein: 3.36, carbs: 35.21, fat: 5.35, estimated: false,
+  });
+  const withoutAddition = { ...draft, additions: [] };
+  assert.deepEqual(resolveRecipeDraft(recipe, withoutAddition, references), [{ referenceId: 'rice-cooked', grams: 125 }]);
+  assert.equal(resolveRecipeDraft(recipe, { ...withoutAddition, choices: { 1: 'omit', 2: 'omit' } }, references), null);
+  assert.equal(recipeCaloriesPerServing(recipe.ingredients, recipe.base_servings, references), 312.5);
+  assert.deepEqual(recipe, original);
+});
+
 test('el guardado incluye el elemento activo una sola vez y conserva las porciones repetidas', () => {
   const food = { type: 'food', referenceId: 'rice-cooked', unit: 'g', amount: '75' };
   const direct = withMealEdit([], { index: null, draft: food });
