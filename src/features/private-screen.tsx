@@ -34,7 +34,7 @@ async function TodayCalories({ locale }: { locale: Locale }) {
       log={data ?? undefined} refreshAt={data?.refreshAt} />
     {summary && <section className="panel section-panel today-meals">
       <h2>{t('home.dailyMeals')}</h2>
-      <ul>{summary.meals.toReversed().map((meal) => {
+      <ul className="today-meal-summary">{summary.meals.toReversed().map((meal) => {
         const category = t(`meals.${meal.category}`);
         return <li key={meal.id}>
           <span className="today-meal-category">{category}</span>

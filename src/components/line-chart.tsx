@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { chartBounds, trendSegments, type ChartPoint } from '@/lib/chart-scale';
 
 export function LineChart({
@@ -11,6 +12,7 @@ export function LineChart({
   compact?: boolean;
   padding?: number;
 }) {
+  const fillId = useId();
   if (data.length < 2) return null;
 
   const width = 640;
@@ -36,10 +38,16 @@ export function LineChart({
   return (
     <svg className={compact ? 'trend-chart compact' : 'trend-chart'} role="img" aria-label={label}
       viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none">
+      <defs>
+        <linearGradient id={fillId} x2="0" y2="1">
+          <stop className="chart-fill-top" />
+          <stop offset="1" className="chart-fill-bottom" />
+        </linearGradient>
+      </defs>
       {[inset, height / 2, height - inset].map((y) => (
         <line className="chart-grid" key={y} x1="0" x2={width} y1={y} y2={y} />
       ))}
-      <polygon className="chart-area" points={`${points[0].x},${height} ${line} ${endpoint.x},${height}`} />
+      <polygon fill={`url(#${fillId})`} points={`${points[0].x},${height} ${line} ${endpoint.x},${height}`} />
       <polyline className="chart-line" points={line} />
       {!compact && points.length <= 60 && points.map(({ x, y }, index) => (
         <line className="chart-observation" key={index} x1={x} x2={x} y1={y} y2={y} />

@@ -1,6 +1,6 @@
 # Estado de MASOMENO
 
-**Categoría de comidas, etiquetas táctiles y zona objetivo de Hoy implementadas en local.**
+**Refinamiento visual de Hoy, Evolución, Comidas, Gym y sus formularios implementado en local.**
 
 ## Estado funcional
 
@@ -32,6 +32,8 @@
 - Las cantidades y medidas domésticas son orientativas. Mi heladera registra disponibilidad sin inventario. [Criterios de porciones](ROADMAP.md#ingredientes-disponibles-y-porciones)
 
 ## Verificado
+
+- Interfaz en Chrome de escritorio (1366 × 820) y con emulación móvil (390 × 844). Se revisaron las cuatro pantallas principales, Configuración, el foco de teclado en Hoy, los períodos de Evolución y los modales de comida, peso y cinta con datos de prueba locales.
 
 - Categorías y zona objetivo. Pasaron TypeScript, ESLint, 58 pruebas y el build. Chrome de escritorio y emulación de iPhone 13 mini en ES, EN e IT verificaron los umbrales, las etiquetas al toque, el modal y la persistencia de categoría y fecha al recargar y editar. Las pruebas de guardado usaron PostgreSQL local y Supabase simulado.
 - Escritorio y registro de comidas. Pasaron TypeScript, ESLint, 55 pruebas y el build. Chrome de escritorio y emulación de iPhone 13 mini en ES, EN e IT verificaron la navegación, el cambio de disposición entre 839 y 840 px, el guardado de decimales, el modal y la edición de ingredientes. El recorrido usó PostgreSQL local con el acceso y el transporte de Supabase simulados.

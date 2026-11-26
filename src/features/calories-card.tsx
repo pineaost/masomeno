@@ -36,7 +36,7 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false, lo
       <div className="calories-content">
         <div className="calories-top">
           <h2 id="calories-title"><span className="flame-icon"><Flame size={19} aria-hidden /></span>{t('title')}</h2>
-          {ready && <span className="estimate">{t('estimate')}</span>}
+          {ready && <span className="estimate"><span className="estimate-mark" aria-hidden>≈</span>{t('estimate')}</span>}
         </div>
         <div className="calories-total">
           <strong>{ready && Number.isFinite(consumed) && consumed >= 0 ? number(consumed) : '—'}</strong>
