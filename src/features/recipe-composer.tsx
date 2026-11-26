@@ -1,11 +1,11 @@
 'use client';
 
-import { Plus, Search, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 import { useFormatter, useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import type { Locale } from '@/i18n/config';
 import { localizedText } from '@/i18n/localized-text';
-import { foodAmount, foodQuantityGrams, maxMealLines, preferredFoodUnit, type CatalogFood, type FoodSelection } from '@/lib/food';
+import { foodAmount, foodQuantityGrams, maxMealLines, preferredFoodUnit, type CatalogFood, type FoodQuantity, type FoodSelection } from '@/lib/food';
 import { recipeEntries, recipeEntryDraft, recipeEntryKey, recipeEntryScore, recipeKinds } from '@/lib/recipe-catalog';
 import { recipeChoice, recipeIngredientChoice, recipeIngredients, recipePart, recipeVariation, type IngredientChoice, type RecipeDraft, type RecipeForLog } from '@/lib/recipe-composition';
 
@@ -46,7 +46,8 @@ export function RecipePicker({ recipes, locale, select }: {
 }
 
 export function RecipeFields({ recipe, draft, refs, locale, update }: {
-  recipe: RecipeForLog; draft: RecipeDraft; refs: Map<string, CatalogFood>; locale: Locale; update: (draft: RecipeDraft) => void;
+  recipe: RecipeForLog; draft: RecipeDraft; refs: Map<string, CatalogFood>; locale: Locale;
+  update: (draft: RecipeDraft, ingredientOpen?: boolean) => void;
 }) {
   const t = useTranslations('recipes');
   const n = useTranslations('nutrition');
@@ -54,8 +55,12 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
   const format = useFormatter();
   const [servingsInput, setServingsInput] = useState(() => String(draft.servings));
   const [picking, setPicking] = useState(false);
-  const [focusedIngredient, setFocusedIngredient] = useState<string | null>(null);
-  const addedField = useRef<HTMLFieldSetElement>(null);
+  const [editing, setEditing] = useState<
+    { position: number; choice: IngredientChoice; measure?: FoodQuantity } |
+    { index: number | null; selection: FoodSelection } | null
+  >(null);
+  const editorField = useRef<HTMLFieldSetElement>(null);
+  const returnFocus = useRef<HTMLButtonElement | null>(null);
   const addButton = useRef<HTMLButtonElement>(null);
   const part = recipePart(recipe, draft);
   const variant = recipeVariation(recipe, draft);
@@ -69,38 +74,79 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
     ...included.map((slot) => recipeIngredientChoice(slot, recipe.alternatives, recipeChoice(slot, draft.choices[slot.position]))?.food_reference_id),
     ...additions.map(({ referenceId }) => referenceId),
   ]);
+  const ingredientOpen = editing !== null;
   useEffect(() => {
-    if (focusedIngredient) addedField.current?.querySelector('input')?.focus();
-  }, [focusedIngredient]);
+    if (editorField.current) {
+      editorField.current.querySelector<HTMLElement>('select, input')?.focus();
+    } else {
+      returnFocus.current?.focus();
+      returnFocus.current = null;
+    }
+  }, [ingredientOpen]);
 
   function changeServings(value: string) {
     setServingsInput(value);
     update({ ...draft, servings: foodAmount(value, 1000) ?? 0 });
   }
 
-  function changeChoice(position: number, choice: IngredientChoice) {
+  function confirmSlot(position: number, previous: IngredientChoice, choice: IngredientChoice, measure?: FoodQuantity) {
+    if (choice === previous && !measure) {
+      endEdit(draft);
+      return;
+    }
     const weights = { ...draft.weights };
     const quantities = { ...draft.quantities };
     const measures = { ...draft.measures };
     delete weights[position];
     delete quantities[position];
     delete measures[position];
-    update({ ...draft, choices: { ...draft.choices, [position]: choice }, weights, quantities, measures });
+    if (measure && choice !== 'omit') measures[position] = measure;
+    endEdit({ ...draft, choices: { ...draft.choices, [position]: choice }, weights, quantities, measures });
   }
 
   function addIngredient(food: CatalogFood) {
     const unit = preferredFoodUnit(food);
-    update({ ...draft, additions: [...additions, { referenceId: food.id, amount: unit === 'g' ? '' : '1', unit }] });
-    setFocusedIngredient(food.id);
+    startEdit({ index: null, selection: { referenceId: food.id, amount: unit === 'g' ? '' : '1', unit } }, addButton.current);
+  }
+
+  function startEdit(next: NonNullable<typeof editing>, trigger: HTMLButtonElement | null) {
+    returnFocus.current = trigger;
     setPicking(false);
+    setEditing(next);
+    update(draft, true);
   }
 
-  function changeAddition(index: number, next?: FoodSelection) {
-    update({ ...draft, additions: next ? additions.map((item, position) => position === index ? next : item)
-      : additions.filter((_, position) => position !== index) });
+  function endEdit(next: RecipeDraft) {
+    setEditing(null);
+    update(next, false);
   }
 
-  const gramsLabel = (grams: number) => n('estimatedWeight', { grams: format.number(grams, { maximumFractionDigits: 2 }) });
+  const formatAmount = (amount: number) => format.number(amount, { maximumFractionDigits: 2 });
+  const amountLabel = ({ amount, unit }: FoodQuantity) =>
+    `${formatAmount(foodAmount(amount) ?? 0)} ${unit === 'g' ? 'g' : n(unit).toLocaleLowerCase(locale)}`;
+  const savedAddition = editing && 'selection' in editing ? editing : null;
+  const additionFood = savedAddition && refs.get(savedAddition.selection.referenceId);
+  const additionGrams = savedAddition && additionFood && foodQuantityGrams(savedAddition.selection, additionFood);
+
+  function editorActions(confirm: () => void, valid: boolean) {
+    return <div className="form-actions">
+      <button type="button" className="button secondary" onClick={() => endEdit(draft)}>{app('cancel')}</button>
+      <button type="button" className="button secondary ingredient-confirm" disabled={!valid} onClick={confirm}>
+        <Check size={16} aria-hidden />{n('confirmItem')}
+      </button>
+    </div>;
+  }
+
+  const additionEditor = savedAddition && additionFood && <fieldset className="recipe-extra" ref={editorField}>
+    <legend>{localizedText(additionFood.food.names, locale) ?? n('food')}</legend>
+    <HouseholdAmount food={additionFood} {...savedAddition.selection} grams={additionGrams ?? undefined}
+      onChange={(amount, unit) => setEditing({ ...savedAddition, selection: { ...savedAddition.selection, amount, unit } })} />
+    {editorActions(() => {
+      const { index, selection } = savedAddition;
+      const next = index === null ? [...additions, selection] : additions.map((item, position) => position === index ? selection : item);
+      endEdit({ ...draft, additions: next });
+    }, Boolean(additionGrams))}
+  </fieldset>;
 
   return <>
     <div className="meal-quantity-controls">
@@ -111,10 +157,10 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
       <QuickAmounts values={[0.5, 1, 1.5, 2]} selected={draft.servings} onChange={(servings) => changeServings(String(servings))} />
     </div>
     {recipe.purchase_unit && <small>{t('purchaseEstimate')}</small>}
-    <details className="recipe-options">
-      <summary>{t('customize')}</summary>
+    <details className="recipe-options recipe-customization">
+      <summary onClick={(event) => { if (editing) event.preventDefault(); }}>{t('customize')}</summary>
       {!!recipe.parts?.length && <label>{t('choosePart')}
-        <select aria-label={t('choosePart')} value={draft.part ?? ''} onChange={(event) => {
+        <select aria-label={t('choosePart')} disabled={!!editing} value={draft.part ?? ''} onChange={(event) => {
           update({ ...recipeDraft(recipe.id, event.target.value || undefined), servings: draft.servings, additions });
         }}>
           <option value="">{t('wholeRecipe')}</option>
@@ -122,7 +168,7 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
         </select>
       </label>}
       {!!variants.length && <label>{t('variation')}
-        <select aria-label={t('variation')} value={variant ? String(variants.indexOf(variant)) : hasEdits ? 'custom' : ''}
+        <select aria-label={t('variation')} disabled={!!editing} value={variant ? String(variants.indexOf(variant)) : hasEdits ? 'custom' : ''}
           onChange={(event) => {
             const chosen = event.target.value === '' ? undefined : variants[Number(event.target.value)];
             update({ ...draft, choices: chosen?.choices ?? {}, quantities: {}, weights: {}, measures: {} });
@@ -132,66 +178,87 @@ export function RecipeFields({ recipe, draft, refs, locale, update }: {
           {variants.map((option, index) => <option key={index} value={index}>{localizedText(option.names, locale)}</option>)}
         </select>
       </label>}
-      {slots.map((slot) => {
+      <ul className="recipe-ingredient-list">{slots.map((slot) => {
         const ref = refs.get(slot.food_reference_id ?? '');
         if (!ref) return null;
         const label = localizedText(ref.food.names, locale) ?? n('food');
         const alternatives = recipe.alternatives.filter(({ ingredient_position }) => ingredient_position === slot.position);
         const choice = recipeChoice(slot, draft.choices[slot.position]);
-        const active = recipeIngredientChoice(slot, alternatives, choice);
-        const activeRef = refs.get(active?.food_reference_id ?? '');
-        const baseGrams = (active?.grams ?? 0) * draft.servings / recipe.base_servings;
-        const quantity = draft.quantities[slot.position];
-        const weight = draft.weights?.[slot.position] ?? (quantity && activeRef?.portion_grams ? quantity * activeRef.portion_grams : baseGrams);
-        const measure = draft.measures?.[slot.position] ?? { amount: weight > 0 ? String(Number(weight.toFixed(2))) : '', unit: 'g' };
-        const grams = activeRef && foodQuantityGrams(measure, activeRef);
-        return <div className="recipe-option" key={slot.position}>
-          <label>{label}
-            <select aria-label={label} value={choice} onChange={(event) => {
-              const value = event.target.value;
-              changeChoice(slot.position, value === 'omit' || value === 'default' ? value : Number(value));
-            }}>
-              <option value="default">{label}</option>
-              {alternatives.map(({ position, food_id, food_reference_id, grams }) => {
-                const alternate = refs.get(food_reference_id);
-                if (!alternate) return null;
-                return <option key={position} value={position}>
-                  {localizedText(alternate.food.names, locale) ?? n('food')}
-                  {food_id === slot.food_id && ` · ${localizedText(alternate.variant_names, locale) ?? format.number(grams) + ' g'}`}
-                  {food_reference_id === ref.id && localizedText(alternate.variant_names, locale) && ` · ${format.number(grams)} g`}
-                </option>;
-              })}
-              <option value="omit">{t('omit')}</option>
-            </select>
-          </label>
-          {activeRef && choice !== 'omit' && <details className="recipe-ingredient-quantity">
-            <summary>{t('editIngredientAmount', { food: localizedText(activeRef.food.names, locale) ?? label })}
-              {grams && ` · ${gramsLabel(grams)}`}</summary>
-            <HouseholdAmount food={activeRef} {...measure} grams={grams ?? undefined}
-              onChange={(amount, unit) => update({ ...draft, measures: { ...draft.measures, [slot.position]: { amount, unit } } })} />
-          </details>}
-        </div>;
+        function ingredientFor(selected: IngredientChoice) {
+          const active = recipeIngredientChoice(slot, alternatives, selected);
+          const food = refs.get(active?.food_reference_id ?? '');
+          const baseGrams = (active?.grams ?? 0) * draft.servings / recipe.base_servings;
+          const quantity = selected === choice ? draft.quantities[slot.position] : undefined;
+          const defaultWeight = quantity && food?.portion_grams ? quantity * food.portion_grams : baseGrams;
+          const weight = (selected === choice ? draft.weights?.[slot.position] : undefined) ?? defaultWeight;
+          const measure: FoodQuantity = (selected === choice ? draft.measures?.[slot.position] : undefined) ??
+            { amount: weight > 0 ? String(Number(weight.toFixed(2))) : '', unit: 'g' };
+          return { food, measure };
+        }
+        const current = ingredientFor(choice);
+        const name = localizedText(current.food?.food.names, locale) ?? label;
+        const slotEdit = editing && 'position' in editing && editing.position === slot.position ? editing : null;
+        const selected = slotEdit && ingredientFor(slotEdit.choice);
+        const measure = slotEdit?.measure ?? selected?.measure;
+        const grams = selected?.food && measure && foodQuantityGrams(measure, selected.food);
+        return <li key={slot.position}>
+          <div className="meal-item-row">
+            <span className="record-row-copy"><strong>{name}</strong>
+              <small>{choice === 'omit' ? t('omit') : amountLabel(current.measure)}</small>
+            </span>
+            <button type="button" className="icon-button" aria-label={n('editItem', { food: name })} disabled={!!editing}
+              onClick={(event) => startEdit({ position: slot.position, choice }, event.currentTarget)}><Pencil size={17} aria-hidden /></button>
+          </div>
+          {slotEdit && <fieldset className="recipe-extra" ref={editorField}>
+            <legend>{name}</legend>
+            <label>{label}
+              <select aria-label={label} value={slotEdit.choice} onChange={(event) => {
+                const value = event.target.value;
+                setEditing({ position: slot.position, choice: value === 'omit' || value === 'default' ? value : Number(value) });
+              }}>
+                <option value="default">{label}</option>
+                {alternatives.map(({ position, food_id, food_reference_id, grams }) => {
+                  const alternate = refs.get(food_reference_id);
+                  if (!alternate) return null;
+                  return <option key={position} value={position}>
+                    {localizedText(alternate.food.names, locale) ?? n('food')}
+                    {food_id === slot.food_id && ` · ${localizedText(alternate.variant_names, locale) ?? format.number(grams) + ' g'}`}
+                    {food_reference_id === ref.id && localizedText(alternate.variant_names, locale) && ` · ${format.number(grams)} g`}
+                  </option>;
+                })}
+                <option value="omit">{t('omit')}</option>
+              </select>
+            </label>
+            {selected?.food && measure && <HouseholdAmount food={selected.food} {...measure} grams={grams ?? undefined}
+              onChange={(amount, unit) => setEditing({ ...slotEdit, measure: { amount, unit } })} />}
+            {editorActions(() => confirmSlot(slot.position, choice, slotEdit.choice, slotEdit.measure),
+              slotEdit.choice === 'omit' || Boolean(grams))}
+          </fieldset>}
+        </li>;
       })}
       {additions.map((ingredient, index) => {
         const food = refs.get(ingredient.referenceId);
         if (!food) return null;
         const name = localizedText(food.food.names, locale) ?? n('food');
-        return <fieldset key={ingredient.referenceId} className="recipe-option recipe-extra"
-          ref={focusedIngredient === ingredient.referenceId ? addedField : undefined}>
-          <legend>{name}</legend>
-          <HouseholdAmount food={food} {...ingredient} grams={foodQuantityGrams(ingredient, food) ?? undefined}
-            onChange={(amount, unit) => changeAddition(index, { ...ingredient, amount, unit })} />
-          <button type="button" className="button secondary" onClick={() => {
-            changeAddition(index);
-            if (focusedIngredient === ingredient.referenceId) setFocusedIngredient(null);
-            addButton.current?.focus();
-          }}>
-            <Trash2 size={16} aria-hidden />{t('removeIngredient', { food: name })}
-          </button>
-        </fieldset>;
-      })}
+        return <li key={ingredient.referenceId}>
+          <div className="meal-item-row">
+            <span className="record-row-copy"><strong>{name}</strong><small>{amountLabel(ingredient)}</small></span>
+            <div className="food-row-actions">
+              <button type="button" className="icon-button" aria-label={n('editItem', { food: name })} disabled={!!editing}
+                onClick={(event) => startEdit({ index, selection: ingredient }, event.currentTarget)}><Pencil size={17} aria-hidden /></button>
+              <button type="button" className="icon-button destructive" aria-label={t('removeIngredient', { food: name })} disabled={!!editing}
+                onClick={() => {
+                  update({ ...draft, additions: additions.filter((_, position) => position !== index) });
+                  addButton.current?.focus();
+                }}><Trash2 size={17} aria-hidden /></button>
+            </div>
+          </div>
+          {savedAddition?.index === index && additionEditor}
+        </li>;
+      })}</ul>
+      {savedAddition?.index === null && additionEditor}
       <button type="button" className="button secondary add-recipe-ingredient" aria-expanded={picking} ref={addButton}
-        disabled={included.length + additions.length >= maxMealLines}
+        disabled={!!editing || included.length + additions.length >= maxMealLines}
         onClick={() => setPicking(!picking)}><Plus size={17} aria-hidden />{t('addIngredient')}</button>
       {picking && <div className="recipe-add-picker">
         <CatalogPicker catalog={[...refs.values()].filter(({ id }) => !includedIds.has(id))}

@@ -74,7 +74,7 @@ export function RecordDialog({ title, close, save, saveLabel, remove, removeProm
         <div className={footer ? 'record-submit-with-summary' : undefined}>
           {footer}
           <div className="form-actions">
-            {remove && <button type="button" className="button secondary" disabled={pending}
+            {remove && <button type="button" className="button secondary destructive" disabled={pending}
               onClick={() => { setError(null); setConfirm(true); }}>{app('remove')}</button>}
             <button type="submit" className="button primary" disabled={pending || !canSave}>{pending ? t('saving') : saveLabel ?? app('save')}</button>
           </div>
@@ -90,7 +90,7 @@ export function RecordDialog({ title, close, save, saveLabel, remove, removeProm
                 if (startWithRemoval) close();
                 else { setError(null); setConfirm(false); }
               }}>{app('cancel')}</button>
-            <button type="button" className="button primary" disabled={pending}
+            <button type="button" className="button primary destructive" disabled={pending}
               onClick={(event) => run(remove, event.currentTarget.closest('dialog'))}>
               {pending ? t('saving') : app('remove')}
             </button>

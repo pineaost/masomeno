@@ -16,7 +16,7 @@ import {
 import { CatalogPicker, HouseholdAmount, QuickAmounts } from './food-picker';
 import { RecipeFields, RecipePicker } from './recipe-composer';
 
-export type ItemEdit = { index: number | null; draft: MealDraftItem };
+export type ItemEdit = { index: number | null; draft: MealDraftItem; ingredientOpen?: boolean };
 
 export function mealItemValues(item: MealDraftItem, refs: Map<string, CatalogFood>, recipes: RecipeForLog[]) {
   if (item.type === 'repeat') return repeatedNutrition(item);
@@ -83,15 +83,9 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
     const result = mealItemValues(draft, refs, recipes);
     const name = itemName(draft);
     const variant = localizedText(food?.variant_names, locale);
-    const update = (item: MealDraftItem) => onEdit({ index, draft: item });
+    const update = (item: MealDraftItem, ingredientOpen = edit.ingredientOpen) => onEdit({ index, draft: item, ingredientOpen });
     const saved = draft.type === 'repeat' ? draft.original : null;
     const savedUnit = saved && ('ingredients' in saved ? saved.measureUnit : saved.unit);
-    function confirm() {
-      onItems(effectiveItems);
-      onEdit(null);
-      onPick(true);
-    }
-
     return <section className="meal-item-editor" aria-label={name}>
       <div className="food-line-heading">
         <div><h3 ref={heading} tabIndex={-1}>{name}</h3>{variant && <small>{variant}</small>}</div>
@@ -100,7 +94,7 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
       {draft.type === 'food' && food && <HouseholdAmount food={food} grams={estimate?.grams} amount={draft.amount} unit={draft.unit}
         onChange={(amount, unit) => update({ ...draft, amount, unit })} />}
       {draft.type === 'recipe' && recipe && <RecipeFields recipe={recipe} draft={draft.recipe} refs={refs} locale={locale}
-        update={(recipe) => update({ ...draft, recipe })} />}
+        update={(recipe, ingredientOpen) => update({ ...draft, recipe }, ingredientOpen)} />}
       {draft.type === 'repeat' && saved && <>
         <label>{savedUnit ? t(savedUnit === 'g' ? 'amountGrams' : savedUnit) : t('servingCount')}
           <input type="text" inputMode="decimal" maxLength={10} value={draft.amount}
@@ -122,9 +116,6 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
       </details>
       <div className="form-actions">
         <button type="button" className="button secondary" onClick={() => { onEdit(null); if (!items.length) onPick(true); }}>{app('cancel')}</button>
-        <button type="button" className="button secondary add-meal-item" disabled={!result || lineCount >= maxMealLines} onClick={confirm}>
-          <Plus size={16} aria-hidden />{t('addAnother')}
-        </button>
       </div>
     </section>;
   }
@@ -142,7 +133,7 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
         <div className="food-row-actions">
           <button type="button" className="icon-button" aria-label={t('editItem', { food: name })} disabled={!!edit}
             onClick={() => onEdit({ index, draft: item })}><Pencil size={17} aria-hidden /></button>
-          <button type="button" className="icon-button" aria-label={t('removeFood', { food: name })} disabled={!!edit}
+          <button type="button" className="icon-button destructive" aria-label={t('removeFood', { food: name })} disabled={!!edit}
             onClick={() => {
               onItems(items.filter((_, position) => position !== index));
               if (items.length === 1) onPick(true);
@@ -157,7 +148,16 @@ export function MealItems({ locale, catalog, recipes, refs, items, effectiveItem
         modify({ type: 'food', referenceId: food.id, unit, amount: unit === 'g' ? '' : '1' } satisfies FoodDraft);
       }} autoFocus={items.length > 0} onEstimate={items.length ? undefined : onEstimate} />
       : <RecipePicker recipes={recipes} locale={locale} select={(recipe) => modify({ type: 'recipe', recipe })} />)}
-    {!edit && !picking && items.length < maxMealLines && <button type="button" className="button secondary add-meal-item"
-      onClick={() => onPick(true)}><Plus size={17} aria-hidden />{t('addItem')}</button>}
+    {(edit || (!picking && items.length < maxMealLines)) && <div className="meal-composition-actions">
+      <button type="button" className="button secondary add-meal-item"
+        disabled={!!edit && (edit.ingredientOpen || !mealItemValues(edit.draft, refs, recipes) || lineCount >= maxMealLines)}
+        onClick={() => {
+          if (edit) {
+            onItems(effectiveItems);
+            onEdit(null);
+          }
+          onPick(true);
+        }}><Plus size={17} aria-hidden />{t('addAnother')}</button>
+    </div>}
   </div>;
 }

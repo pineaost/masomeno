@@ -99,7 +99,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
   const total = visibleValues.length && visibleValues.every(Boolean)
     ? totalCalories(visibleValues.flatMap((item) => item ? [item.kcal] : [])) : null;
   const canSave = kind === 'manual' || (legacy && legacyValues.length > 0 && legacyValues.every(Boolean) && !incompleteEdit && activeLine === null) ||
-    (composing && count > 0 && count <= maxMealLines && previewValues.every(Boolean)) ||
+    (composing && !itemEdit?.ingredientOpen && count > 0 && count <= maxMealLines && previewValues.every(Boolean)) ||
     (kind === 'snapshot' && !!archived && activeLine === null);
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
   const amountText = (value: number, unit?: FoodUnit) => unit === 'g' ? `${number(value)} g`
@@ -214,7 +214,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
             <div className="food-row-actions">
               {!removed && <button type="button" className="icon-button" aria-label={t('editItem', { food: group.name })}
                 disabled={activeLine !== null} onClick={() => setActiveLine(index)}><Pencil size={17} aria-hidden /></button>}
-              {snapshots.length > 1 && <button type="button" className="icon-button" disabled={activeLine !== null}
+              {snapshots.length > 1 && <button type="button" className={removed ? 'icon-button' : 'icon-button destructive'} disabled={activeLine !== null}
                 aria-label={recipeText(removed ? 'restorePreparation' : 'removePreparation', { recipe: group.name })}
                 onClick={() => changeArchived(index, removed ? String(group.servings) : '0')}>
                 {removed ? <RotateCcw size={17} aria-hidden /> : <Trash2 size={17} aria-hidden />}
@@ -272,7 +272,7 @@ function MealEditor({ meal, mode, log, locale, day, now, close, initialRecipe }:
             <div className="food-row-actions">
               <button type="button" className="icon-button" aria-label={t('editItem', { food: label })} disabled={activeLine !== null}
                 onClick={() => { setActiveLine(line.key); setShowCatalog(false); }}><Pencil size={17} aria-hidden /></button>
-              <button type="button" className="icon-button" aria-label={t('removeFood', { food: label })}
+              <button type="button" className="icon-button destructive" aria-label={t('removeFood', { food: label })}
                 disabled={activeLine !== null && activeLine !== line.key} onClick={() => {
                   setLines(lines.filter((item) => item.key !== line.key));
                   setActiveLine(null);
