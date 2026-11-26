@@ -37,9 +37,12 @@
   },
   "calories": {
     "title": "Calorie di oggi",
-    "left": "Rimanenti",
-    "over": "Oltre l’obiettivo",
-    "reached": "Obiettivo raggiunto",
+    "targetZone": "Intervallo obiettivo",
+    "diary": {
+      "belowRange": "{kcal} kcal sotto",
+      "withinRange": "Nell’intervallo",
+      "aboveRange": "{kcal} kcal sopra"
+    },
     "estimate": "Valori approssimativi",
     "range": "Intervallo obiettivo: {lower}–{upper} kcal",
     "belowRange": "Mancano {kcal} kcal per entrare nell’intervallo",

@@ -37,9 +37,12 @@
   },
   "calories": {
     "title": "Calorías de hoy",
-    "left": "Por consumir",
-    "over": "Por encima del objetivo",
-    "reached": "Objetivo alcanzado",
+    "targetZone": "Zona objetivo",
+    "diary": {
+      "belowRange": "{kcal} kcal por debajo",
+      "withinRange": "Dentro de la zona",
+      "aboveRange": "{kcal} kcal por encima"
+    },
     "estimate": "Valores aproximados",
     "range": "Zona objetivo: {lower}–{upper} kcal",
     "belowRange": "Faltan {kcal} kcal para entrar en la zona",

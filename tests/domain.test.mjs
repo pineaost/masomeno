@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { calorieProgress, summarizeCalories } from '../src/lib/calories.ts';
+import { calorieProgress } from '../src/lib/calories.ts';
 import { isCalendarDay, monthsBefore } from '../src/lib/dates.ts';
 import { displayDistance, displayWeight, heightInFeetAndInches, weightInKg } from '../src/lib/units.ts';
 
@@ -18,8 +18,6 @@ test('la barra usa una escala fija y respeta ambos límites de la zona objetivo'
     assert.deepEqual([progress.zoneStart, progress.zoneWidth, progress.excessStart], [76, 8, 84]);
     assert.equal(progress.visible, Math.min(consumed, 2500));
     near(progress.percentage, consumed / 20);
-    near(progress.remaining, Math.max(0, 1900 - consumed));
-    near(progress.excess, Math.max(0, consumed - 2100));
     near(progress.baseFill, orange);
     near(progress.zoneFill, green);
     near(progress.excessFill, coral);
@@ -29,7 +27,7 @@ test('la barra usa una escala fija y respeta ambos límites de la zona objetivo'
 test('la zona se recalcula al cambiar la meta y admite metas pequeñas y datos inválidos', () => {
   const changed = calorieProgress(1750.5, 1600);
   assert.deepEqual([changed.lower, changed.upper, changed.scale, changed.goalMark, changed.zoneWidth], [1500, 1700, 2000, 80, 10]);
-  assert.equal(changed.excess, 50.5);
+  assert.equal(changed.distanceToRange, 50.5);
   const small = calorieProgress(85, 50);
   assert.deepEqual([small.lower, small.upper, small.scale, small.baseFill, small.excessFill], [0, 150, 175, 0, 0]);
   assert.ok(small.zoneWidth < 100 && small.zoneFill > 0 && small.zoneFill < 100);
@@ -37,10 +35,19 @@ test('la zona se recalcula al cambiar la meta y admite metas pequeñas y datos i
   for (const invalid of [NaN, -1, Infinity]) assert.equal(calorieProgress(invalid, 2000), null);
 });
 
-test('el resumen del historial conserva la diferencia con el objetivo exacto', () => {
-  assert.deepEqual(summarizeCalories(2300, 2000), { difference: -300, status: 'over' });
-  assert.equal(summarizeCalories(2100, 2100).status, 'reached');
-  assert.equal(summarizeCalories(1450, 2100).difference, 650);
+test('Hoy y Comidas interpretan los límites inclusivos y la distancia al rango de cada meta', () => {
+  for (const goal of [1600, 2100]) {
+    for (const [offset, status, distance] of [
+      [-650, 'belowRange', 550], [-100.25, 'belowRange', 0.25],
+      [-100, 'withinRange', 0], [-50, 'withinRange', 0], [0, 'withinRange', 0],
+      [50, 'withinRange', 0], [100, 'withinRange', 0],
+      [100.25, 'aboveRange', 0.25], [350, 'aboveRange', 250],
+    ]) {
+      const balance = calorieProgress(goal + offset, goal);
+      assert.deepEqual([balance.status, balance.distanceToRange], [status, distance]);
+    }
+  }
+  assert.equal(calorieProgress(0, 50).status, 'withinRange');
 });
 
 test('las conversiones mantienen como base las unidades métricas', () => {

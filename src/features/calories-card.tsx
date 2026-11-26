@@ -27,8 +27,7 @@ export function CaloriesCard({ consumed, goal, state = 'ready', live = false, lo
   const displayGoal = progress ? goal : null;
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
   const range = progress ? t('range', { lower: number(progress.lower), upper: number(progress.upper) }) : '';
-  const status = progress && (progress.remaining > 0 ? t('belowRange', { kcal: number(progress.remaining) })
-    : progress.excess > 0 ? t('aboveRange', { kcal: number(progress.excess) }) : t('withinRange'));
+  const status = progress && t(progress.status, { kcal: number(progress.distanceToRange) });
   const diary = localePath(locale, '/comidas');
   useFoodDayRefresh(refreshAt);
 

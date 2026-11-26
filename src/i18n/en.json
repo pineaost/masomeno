@@ -37,9 +37,12 @@
   },
   "calories": {
     "title": "Today's calories",
-    "left": "Remaining",
-    "over": "Above your goal",
-    "reached": "Goal reached",
+    "targetZone": "Target range",
+    "diary": {
+      "belowRange": "{kcal} kcal below",
+      "withinRange": "Within range",
+      "aboveRange": "{kcal} kcal above"
+    },
     "estimate": "Approximate values",
     "range": "Target range: {lower}–{upper} kcal",
     "belowRange": "{kcal} kcal to reach the range",

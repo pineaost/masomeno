@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import { EditRecordButton, RecordDialog } from '@/components/tracking-ui';
 import { localePath, type Locale } from '@/i18n/config';
 import { localizedText } from '@/i18n/localized-text';
-import { summarizeCalories } from '@/lib/calories';
+import { calorieProgress } from '@/lib/calories';
 import { calendarDate, localFormDateTime } from '@/lib/dates';
 import {
   foodAmount, maxMealLines, mealCalories, mealCategories, portionCalories, portionInGrams, preferredFoodUnit, quickFoodAmounts,
@@ -366,7 +366,7 @@ export function FoodDiary({ locale, meals, recent, catalog, recipes, zone, date,
   const format = useFormatter();
   const [selected, setSelected] = useState<{ now: string; meal: MealRecord; mode: 'edit' | 'remove' } | null>(null);
   const log = { catalog, recent, recipes, zone };
-  const summary = kcal === null ? null : summarizeCalories(consumed, kcal);
+  const balance = calorieProgress(consumed, kcal);
   const number = (value: number) => format.number(value, { useGrouping: 'always', maximumFractionDigits: 2 });
   useFoodDayRefresh(refreshAt);
 
@@ -386,7 +386,8 @@ export function FoodDiary({ locale, meals, recent, catalog, recipes, zone, date,
       <dl className="food-day-totals">
         <div><dt>{food('dayTotal')}</dt><dd>{number(consumed)} kcal</dd></div>
         <div><dt>{food('goal')}</dt><dd>{kcal === null ? '—' : `${number(kcal)} kcal`}</dd></div>
-        {summary && <div><dt>{calories(summary.status)}</dt><dd>{number(Math.abs(summary.difference))} kcal</dd></div>}
+        {balance && <div><dt>{calories('targetZone')}</dt>
+          <dd>{calories(`diary.${balance.status}`, { kcal: number(balance.distanceToRange) })}</dd></div>}
       </dl>
     </div>
     {meals.length ? <ul className="history food-history">

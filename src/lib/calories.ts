@@ -1,11 +1,3 @@
-export function summarizeCalories(consumed: number, goal: number) {
-  const difference = goal - consumed;
-  return {
-    difference,
-    status: difference < 0 ? 'over' : difference === 0 ? 'reached' : 'left',
-  } as const;
-}
-
 const tolerance = 100;
 
 export function calorieProgress(consumed: number, goal: number | null) {
@@ -22,8 +14,8 @@ export function calorieProgress(consumed: number, goal: number | null) {
   const width = (kcal: number) => (kcal / scale) * 100;
   return {
     lower, upper, scale, visible, percentage,
-    remaining: Math.max(0, lower - consumed),
-    excess: Math.max(0, consumed - upper),
+    status: consumed < lower ? 'belowRange' : consumed > upper ? 'aboveRange' : 'withinRange',
+    distanceToRange: Math.max(0, lower - consumed, consumed - upper),
     goalMark: width(goal),
     baseFill: width(Math.min(visible, lower)),
     zoneStart: width(lower),
@@ -31,5 +23,5 @@ export function calorieProgress(consumed: number, goal: number | null) {
     zoneFill: ((Math.min(upper, Math.max(lower, visible)) - lower) / (upper - lower)) * 100,
     excessStart: width(upper),
     excessFill: width(Math.max(0, visible - upper)),
-  };
+  } as const;
 }
